@@ -296,7 +296,7 @@ classdef platform < handle
             %TO DO 
             this.rotateEngine(0,8010,'home');
             pause(0.5); %it could bounce, so pause a bit
-            this.newOrigin();
+            this.originPosition(1)= 0;
             this.searchForLimit= 'False';
         end
         %----------------------PLATFORM CONTROL----------------------------
@@ -696,7 +696,7 @@ classdef platform < handle
                         error('Acknowledge not received. Some error happened.');
                     elseif(double(response(3)) == 121)
                         %Limit of movement reached
-                        disp('Position 0 reached.');
+                        %disp('Position 0 reached.');
                     elseif(double(response(3)) == 123)
                         %Movement finished
                         warning('Movement finished and home was not reached. Something is wrong with the sensor. Please check that it connected and set properly.');

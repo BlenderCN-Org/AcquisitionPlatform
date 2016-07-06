@@ -20,7 +20,7 @@ classdef nikonController < handle
             %OUTPUT: 
             %   1 output --> handle to the object controlling Nikon camera
             %<a href="matlab: opentoline('example.m',8)">Some examples here</a>
-            old= cd('C:\PlatformController\Nikon_Controller');
+            old= cd('C:\AcquisitionPlatform\Nikon_Controller');
             this.objectHandle = nikonController_mex('new', varargin{:});
             cd(old);
         end
