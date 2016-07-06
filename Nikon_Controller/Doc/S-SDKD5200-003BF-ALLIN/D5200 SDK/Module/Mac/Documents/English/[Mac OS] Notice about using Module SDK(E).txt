@@ -1,0 +1,37 @@
+Nikon Type0009 Module SDK Revision 3.
+  === [Mac OS] Notice about using Module SDK ===
+
+[Summary]
+
+    Mac OS X 10.11 (El Capitan) is supported from Module SDK.
+    Due to this change,  restrictions are added to Type0009 Module and PTP Driver.
+    Please notice the following when you use Module SDK on Mac OS.
+
+[Environment]
+
+  [Macintosh]
+    Mac OS X 10.9.5 (Mavericks)
+    Mac OS X 10.10.3 (Yosemite)
+    Mac OS X 10.11 (El Capitan)
+
+[Glossary]
+
+  - New SDK ... Type0009 Module SDK Revision 3. (El Capitan supported revision)  * This Module SDK
+Å@- Old SDK ... Type0009 Module SDK older than New SDK
+
+  * Please refer to ReadMe_Eng.txt for the details about other words.
+
+[Notice]
+
+  - New restrictions are added to Type0009 Module by New SDK.
+    Please refer the following document and notice.
+
+      - Usage of Type0009 Module(E).pdf
+        "The restriction on Macintosh"
+
+    Also when you use Type0009 Module of New SDK from the application that you made for Old SDK,
+    please notice the restrictions above.
+
+  - Do not load mixed Type0009 Module of New SDK and Type0009 Module of Old SDK.
+    The SDK is incorrectly executed.
+
