@@ -29,7 +29,7 @@ function [cameraParameters] = calibrateCamera(n, p)
     %Note: First picture taken has to be the one with the pattern being
     %the coplanar with the xy axis in the world coordinates
     %%first delete all images from previous sessions.
-    delete('C:\Users\CIC\Documents\MATLAB\ExtraFunctionalities\calibrationImages\*.jpg');
+    delete('C:\AcquisitionPlatform\Other\ExtraFunctionalities\calibrationImages\*.jpg');
     p.home
     
     for i=0:18:45 %inclinationAngle

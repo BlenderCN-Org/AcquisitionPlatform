@@ -813,7 +813,7 @@ classdef platform < handle
            
            %Byte3
            if (this.maximumCurrent >= 1 && this.maximumCurrent <= 200)
-               msg= strcat(msg,char(126));
+               msg= strcat(msg,char(113));
            else
                error('The value set in the parameter maximumCurrent should be between 10 and 200. Please check it.');
            end
