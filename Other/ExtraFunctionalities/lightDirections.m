@@ -206,7 +206,7 @@ function [ worldVectors, nHighlights, sphericalCord, structs] = lightDirections(
         %%now we will pass the cartesian coordinates to spheric:
         lightVectors(i,2)= -lightVectors(i,2); %to flip the y coordinate, preparing coordinates to be multiplied per Rotation Matrix .
        
-        
+        lightVectors
         %now we must use the calibration parameters to be able to pass from
         %camera coordinates to world coordinates.
         
