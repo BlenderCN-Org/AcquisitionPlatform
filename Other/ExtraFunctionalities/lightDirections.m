@@ -1,4 +1,4 @@
-function [ worldVectors, nHighlights, sphericalCord] = lightDirections(image, focalLength, calibrationParam,cameraNumber)
+function [ worldVectors, nHighlights, sphericalCord, structs] = lightDirections(image, focalLength, calibrationParam,cameraNumber)
 % lightDirections Function to get the light directions from a sphere. This
 % function is able to detect highlight points in a sphere, and returns its
 % direction in a world Coordinate system. 
@@ -27,7 +27,7 @@ function [ worldVectors, nHighlights, sphericalCord] = lightDirections(image, fo
 %axis matches with the rotation Matrices obtained when calibrating the Images. 
 %If the axis doesn't match, you need to rotate from one (or two, if
 %unlucky), to make the axis equal.
-    addpath('../Nikon')
+    %addpath('../Nikon')
     
     %first we need to calculate the intrinsic camera calibration matrix.
     %This is used to cast rays from camera Coordinates in to World
@@ -47,9 +47,9 @@ function [ worldVectors, nHighlights, sphericalCord] = lightDirections(image, fo
     widthPerPixel = width_cameraFilm/width;
     
     %calculate K theoretically, to compare with experimental:
-    Ktheoric= [focalLength/widthPerPixel 0  width/2; 0 focalLength/heightPerPixel height/2; 0 0 1]
+    Ktheoric= [focalLength/widthPerPixel 0  width/2; 0 focalLength/heightPerPixel height/2; 0 0 1];
     %set K to the value calculated experimentally
-    K= calibrationParam.IntrinsicMatrix'
+    K= calibrationParam.IntrinsicMatrix';
     
     %Now we should get the sphere center and the radius
     f= figure();
@@ -65,21 +65,59 @@ function [ worldVectors, nHighlights, sphericalCord] = lightDirections(image, fo
     sphereRadiiPixels= ((sphereBoundary_x- sphereCenter_x)^2+(sphereBoundary_y-sphereCenter_y)^2)^0.5;
     sphereRadiiPixels= round(sphereRadiiPixels);
     
+    %---------------DETECT AND PROCESS HIGHLIGHT POINTS--------------------
     %%detect highlight points, using regionprops.
     grey= rgb2gray(image);
     BW= grey > 250;
-    structs= regionprops(BW,grey,{'centroid','Area'});
+    structs= regionprops(BW,grey,{'centroid'});
     highlights_x= [];
     highlights_y= [];
+    
+    %we have to check all the centroids recovered, and for the ones that
+    %are too close, we should mix them all in one only centroid. 
+    minimumDistance= sphereRadiiPixels/10;
+    structsToEliminate=[];
+    for j= 1: numel(structs)
+        closeCentroids= [structs(j)];
+        for k=1: numel(structs)
+            if(k~=j && ~any(structsToEliminate == j))
+                centroidDistance= ((structs(k).Centroid(1)-structs(j).Centroid(1))^2+(structs(k).Centroid(2)-structs(j).Centroid(2))^2)^0.5;
+                if( centroidDistance <= minimumDistance)
+                    closeCentroids= [closeCentroids structs(k)];
+                    structsToEliminate= [structsToEliminate k];
+                end
+            end
+        end
+        numberOfCentroids= length(closeCentroids);
+        x=0;
+        y=0;
+        for i=1:numberOfCentroids
+            x= x+ closeCentroids(i).Centroid(1);
+            y= y+ closeCentroids(i).Centroid(2);
+        end
+        structs(j).Centroid= [x/numberOfCentroids y/numberOfCentroids];
+    end
+    structsToEliminate= sort(structsToEliminate);
+    %eliminate centroids
+    for i=1: length(structsToEliminate)
+        structs(structsToEliminate(i)) =[];
+        if(~isempty(structsToEliminate))
+            structsToEliminate= structsToEliminate-1;
+        end
+    end
+    
+    
     for k = 1: numel(structs)
-        if(structs(k).Area > (sphereRadiiPixels))
+        %structs(k).Area
+
+        %if(structs(k).Area > (sphereRadiiPixels))
             if(((structs(k).Centroid(1)-sphereCenter_x)^2+(structs(k).Centroid(2)-sphereCenter_y)^2) < sphereRadiiPixels^2)
                 %%if the point is inside the circle
                 highlights_x= [highlights_x structs(k).Centroid(1)];
                 highlights_y= [highlights_y structs(k).Centroid(2)];
                 plot(structs(k).Centroid(1),structs(k).Centroid(2),'r*')
             end
-        end
+        %end
     end
     hold off
     
