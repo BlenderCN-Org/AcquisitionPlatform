@@ -2,7 +2,7 @@ function [distance] = evaluateLights( u1,u2,u3)
 %EVALUATELIGHTS Summary of this function goes here
 %   Detailed explanation goes here
 
-    lightsZ= -110; %cm
+    lightsZ= -101; %cm
     
     f1= lightsZ/u1(3);
     f2= lightsZ/u2(3);
