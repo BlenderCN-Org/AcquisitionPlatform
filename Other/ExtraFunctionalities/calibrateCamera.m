@@ -33,9 +33,8 @@ function [cameraParameters] = calibrateCamera(n, p)
     p.home
     
     for i=0:18:45 %inclinationAngle
-        for j=45:-18:-45 %rotationAngle
+        for j=36:-9:-36 %rotationAngle
             p.move(p.deg2steps([j i]),'Absolute');
-            
             
             filename= strcat(defaultPath,sprintf('Inclination_%02d_Rotation_',(i)),num2str(j),'.jpg');
         
@@ -46,7 +45,8 @@ function [cameraParameters] = calibrateCamera(n, p)
             end
             
         end
-        p.home
+        p.home;
+        p.move([0,0],'Absolute');
     end
     
     %START CALIBRATION.
