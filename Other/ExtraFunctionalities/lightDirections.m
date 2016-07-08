@@ -57,14 +57,13 @@ function [ worldVectors, nHighlights, sphericalCord, structs] = lightDirections(
     hold on
     
     %Sphere center:
-    disp('Click Sphere Center: ');
-    [sphereCenter_x, sphereCenter_y]= getpts(gcf);
-    %Radius (in pixel units): 
-    disp('Click Sphere Boundary: ');
-    [sphereBoundary_x, sphereBoundary_y] = getpts(gcf);
-    sphereRadiiPixels= ((sphereBoundary_x- sphereCenter_x)^2+(sphereBoundary_y-sphereCenter_y)^2)^0.5;
-    sphereRadiiPixels= round(sphereRadiiPixels);
+    disp('Click some points in the sphere Boundary: ');
+    [sphereX, sphereY]= getpts(gcf);
     
+    [sphereCenter_x, sphereCenter_y,sphereRadiiPixels]= fitCircle(sphereX,sphereY);
+    
+    %plot cercle found
+    plotCircle(sphereCenter_x, sphereCenter_y, sphereRadiiPixels);
     %---------------DETECT AND PROCESS HIGHLIGHT POINTS--------------------
     %%detect highlight points, using regionprops.
     grey= rgb2gray(image);
