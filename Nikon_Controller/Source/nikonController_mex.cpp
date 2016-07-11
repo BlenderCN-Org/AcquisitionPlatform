@@ -213,19 +213,43 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 			{	
                 mxArray *exif[1];
 
-                if(nrhs == 3)
+                if(nrhs >= 3)
                 {
-                    FILE* pFile;
-                    pFile= fopen("tmp.jpeg","wb");
-                    fwrite(bufferImage.pData,bufferImage.wPhysicalBytes,bufferImage.ulElements,pFile);
-                    fclose(pFile);
-                    mxArray *input[1];
-                    input[0]=mxCreateString("tmp.jpeg");
-                    mexCallMATLAB(1,exif,1, input, "getexif");
-                    remove("tmp.jpeg");
+                    char inputParameter[20];
+                    mxGetString(prhs[2], inputParameter, sizeof(inputParameter));
+                    if (!strcmp("exif", inputParameter))
+                    {
+                        FILE* pFile;
+                        pFile= fopen("tmp.jpeg","wb");
+                        fwrite(bufferImage.pData,bufferImage.wPhysicalBytes,bufferImage.ulElements,pFile);
+                        fclose(pFile);
+                        mxArray *input[1];
+                        input[0]=mxCreateString("tmp.jpeg");
+                        mexCallMATLAB(1,exif,1, input, "getexif");
+                        remove("tmp.jpeg");
+                    }
+                    else 
+                    {
+                        char nameImage[128];
+                        mxGetString(prhs[2], nameImage, sizeof(nameImage));
+                        FILE* pFile;
+                        pFile= fopen(nameImage,"wb");
+                        fwrite(bufferImage.pData,bufferImage.wPhysicalBytes,bufferImage.ulElements,pFile);
+                        fclose(pFile); 
+                    }
+                    
+                    if(nrhs==4)
+                    {
+                        char nameImage[128];
+                        mxGetString(prhs[3], nameImage, sizeof(nameImage));
+                        FILE* pFile;
+                        pFile= fopen(nameImage,"wb");
+                        fwrite(bufferImage.pData,bufferImage.wPhysicalBytes,bufferImage.ulElements,pFile);
+                        fclose(pFile); 
+                    }
                 }
                 
-
+                
                 if((imagesToRead == 2 && nlhs==2) || (imagesToRead == 1 && nlhs == 1))
                 {
                     //case of one image taken(jpeg) and one output variable. Or case of 2 images to read and 2 outputs requested.

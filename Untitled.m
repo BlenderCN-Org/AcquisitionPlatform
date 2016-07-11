@@ -9,6 +9,7 @@ p.home();
 
 stepVertical = -5;
 stepHorizontal= 5;
+
 for j=-5:stepVertical:-15
     p.move(p.deg2steps([0 stepVertical]));
     name= strcat('Images/Hassan/Domino_height_',num2str(j));

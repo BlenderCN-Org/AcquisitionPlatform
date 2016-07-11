@@ -298,6 +298,7 @@ classdef platform < handle
             pause(0.5); %it could bounce, so pause a bit
             this.originPosition(1)= 0;
             this.searchForLimit= 'False';
+            this.lastMove= 'Clockwise';
         end
         %----------------------PLATFORM CONTROL----------------------------
         function status= getEngineStatus(this,engine)
