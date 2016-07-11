@@ -1,16 +1,16 @@
-function [ worldVectors, nHighlights, sphericalCord, structs] = lightDirections(image, focalLength, calibrationParam,cameraNumber)
+function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,cameraNumber,varargin)
 % lightDirections Function to get the light directions from a sphere. This
 % function is able to detect highlight points in a sphere, and returns its
 % direction in a world Coordinate system. 
 % 
 % Author: Victor Moyano 
-% Date: 09/06/2016
+% Date: 11/07/2016
 
 %WORKFLOW:
 %  0. PreJob: Calibrate camera to obtain intrinsic and extrinsic parameters.
 %
 %  1. Get light directions in Camera Coordinate System:
-%   1.1. Find sphere center, and sphere radii at the 2D image taken. (Done manually) 
+%   1.1. Find sphere center, and sphere radii at the 2D image taken. (Done automatically or manually) 
 %   1.2. Detect highlight points in 2D image.(Done automatically).
 %   1.3. Fit the sphere in to a conic matrix, in order to be able to do the
 %   maths for finding sphereCenter. As said, in order to do this, we need
@@ -39,6 +39,7 @@ function [ worldVectors, nHighlights, sphericalCord, structs] = lightDirections(
     %occuped by each pixel in the camera film, and the imageCenter_x is
     %the center of the image. 
     
+    
     height_cameraFilm= 15.6; %in mm
     width_cameraFilm= 23.5; %in mm
     height= size(image,1);
@@ -56,71 +57,81 @@ function [ worldVectors, nHighlights, sphericalCord, structs] = lightDirections(
     imshow(image);
     hold on
     
-    %Sphere center:
+    %Find the sphere to a cercle, by least square method:
     disp('Click some points in the sphere Boundary: ');
     [sphereX, sphereY]= getpts(gcf);
-    
     [sphereCenter_x, sphereCenter_y,sphereRadiiPixels]= fitCircle(sphereX,sphereY);
     
     %plot cercle found
     plotCircle(sphereCenter_x, sphereCenter_y, sphereRadiiPixels);
-    %---------------DETECT AND PROCESS HIGHLIGHT POINTS--------------------
-    %%detect highlight points, using regionprops.
-    grey= rgb2gray(image);
-    BW= grey > 250;
-    structs= regionprops(BW,grey,{'centroid'});
-    highlights_x= [];
-    highlights_y= [];
     
-    %we have to check all the centroids recovered, and for the ones that
-    %are too close, we should mix them all in one only centroid. 
-    minimumDistance= sphereRadiiPixels/10;
-    structsToEliminate=[];
-    for j= 1: numel(structs)
-        closeCentroids= [structs(j)];
-        for k=1: numel(structs)
-            if(k~=j && ~any(structsToEliminate == j))
-                centroidDistance= ((structs(k).Centroid(1)-structs(j).Centroid(1))^2+(structs(k).Centroid(2)-structs(j).Centroid(2))^2)^0.5;
-                if( centroidDistance <= minimumDistance)
-                    closeCentroids= [closeCentroids structs(k)];
-                    structsToEliminate= [structsToEliminate k];
+    %---------------DETECT AND PROCESS HIGHLIGHT POINTS--------------------
+    %%detect highlight points. It could be done either automatically or
+    %%manually.
+    if( length(varargin) == 0) 
+   
+        grey= rgb2gray(image);
+        BW= grey > 250;
+        structs= regionprops(BW,grey,{'centroid'});
+        highlights_x= [];
+        highlights_y= [];
+
+        %we have to check all the centroids recovered, and for the ones that
+        %are too close, we should mix them all in one only centroid. 
+        minimumDistance= sphereRadiiPixels/10;
+        structsToEliminate=[];
+        for j= 1: numel(structs)
+            closeCentroids= [structs(j)];
+            for k=1: numel(structs)
+                if(k~=j && ~any(structsToEliminate == j))
+                    centroidDistance= ((structs(k).Centroid(1)-structs(j).Centroid(1))^2+(structs(k).Centroid(2)-structs(j).Centroid(2))^2)^0.5;
+                    if( centroidDistance <= minimumDistance)
+                        closeCentroids= [closeCentroids structs(k)];
+                        structsToEliminate= [structsToEliminate k];
+                    end
                 end
             end
-        end
-        numberOfCentroids= length(closeCentroids);
-        x=0;
-        y=0;
-        for i=1:numberOfCentroids
-            x= x+ closeCentroids(i).Centroid(1);
-            y= y+ closeCentroids(i).Centroid(2);
-        end
-        structs(j).Centroid= [x/numberOfCentroids y/numberOfCentroids];
-    end
-    structsToEliminate= sort(structsToEliminate);
-    %eliminate centroids
-    for i=1: length(structsToEliminate)
-        structs(structsToEliminate(i)) =[];
-        if(~isempty(structsToEliminate))
-            structsToEliminate= structsToEliminate-1;
-        end
-    end
-    
-    
-    for k = 1: numel(structs)
-        %structs(k).Area
-
-        %if(structs(k).Area > (sphereRadiiPixels))
-            if(((structs(k).Centroid(1)-sphereCenter_x)^2+(structs(k).Centroid(2)-sphereCenter_y)^2) < sphereRadiiPixels^2)
-                %%if the point is inside the circle
-                highlights_x= [highlights_x structs(k).Centroid(1)];
-                highlights_y= [highlights_y structs(k).Centroid(2)];
-                plot(structs(k).Centroid(1),structs(k).Centroid(2),'r*')
+            numberOfCentroids= length(closeCentroids);
+            x=0;
+            y=0;
+            for i=1:numberOfCentroids
+                x= x+ closeCentroids(i).Centroid(1);
+                y= y+ closeCentroids(i).Centroid(2);
             end
-        %end
+            structs(j).Centroid= [x/numberOfCentroids y/numberOfCentroids];
+        end
+        structsToEliminate= sort(structsToEliminate);
+        %eliminate centroids
+        structsToEliminate= unique(structsToEliminate);
+        for i=1:length(structsToEliminate)
+            structs(structsToEliminate(i)) =[];
+            structsToEliminate
+            if(~isempty(structsToEliminate))
+                structsToEliminate= structsToEliminate-1;
+            end
+        end
+
+
+        for k = 1: numel(structs)
+            %structs(k).Area
+
+            %if(structs(k).Area > (sphereRadiiPixels))
+                if(((structs(k).Centroid(1)-sphereCenter_x)^2+(structs(k).Centroid(2)-sphereCenter_y)^2) < sphereRadiiPixels^2)
+                    %%if the point is inside the circle
+                    highlights_x= [highlights_x structs(k).Centroid(1)];
+                    highlights_y= [highlights_y structs(k).Centroid(2)];
+                    plot(structs(k).Centroid(1),structs(k).Centroid(2),'r*')
+                end
+            %end
+        end
+        hold off
+    
+    elseif(strcmp(varargin{1},'Manual'))
+        [highlights_x,highlights_y]= getpts();
+        highlights_x= highlights_x'
+        highlights_y= highlights_y'
+        
     end
-    hold off
-    
-    
     %sort the highlight points in increasing x (first the lights in the
     %left of the image). This is done for being able to relate lights in
     %the image with the directions calculated later on.
@@ -205,7 +216,6 @@ function [ worldVectors, nHighlights, sphericalCord, structs] = lightDirections(
         %%now we will pass the cartesian coordinates to spheric:
         lightVectors(i,2)= -lightVectors(i,2); %to flip the y coordinate, preparing coordinates to be multiplied per Rotation Matrix .
        
-        lightVectors
         %now we must use the calibration parameters to be able to pass from
         %camera coordinates to world coordinates.
         
