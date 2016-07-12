@@ -23,13 +23,13 @@ function [cameraParameters] = calibrateCamera(n, p)
     %%set the image to capture in JPEG small(fast calibration)
     n.set('Compression Level',3);
     n.set('Image Size',3);
-    defaultPath= 'calibrationImages/image';
+    defaultPath= 'calibrationImages2/image';
     
     %TAKE THE CALIBRATION IMAGES
     %Note: First picture taken has to be the one with the pattern being
     %the coplanar with the xy axis in the world coordinates
     %%first delete all images from previous sessions.
-    delete('C:\AcquisitionPlatform\Other\ExtraFunctionalities\calibrationImages\*.jpg');
+    delete('C:\AcquisitionPlatform\Other\ExtraFunctionalities\calibrationImages2\*.jpg');
     p.home
     
     for i=0:18:45 %inclinationAngle
@@ -51,7 +51,7 @@ function [cameraParameters] = calibrateCamera(n, p)
     
     %START CALIBRATION.
     %%set the calibration Images path
-    images = imageSet(fullfile('calibrationImages'));
+    images = imageSet(fullfile('calibrationImages2'));
     imageFileNames= images.ImageLocation;
     
     %%detect Checkerboardpoints
