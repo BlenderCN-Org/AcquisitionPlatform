@@ -65,10 +65,11 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     %plot cercle found
     plotCircle(sphereCenter_x, sphereCenter_y, sphereRadiiPixels);
     
+
     %---------------DETECT AND PROCESS HIGHLIGHT POINTS--------------------
     %%detect highlight points. It could be done either automatically or
     %%manually.
-    if( length(varargin) == 0) 
+    if( length(varargin) == 0 || (length(varargin)==1 && strcmp(varargin{1},'Auto'))) 
    
         grey= rgb2gray(image);
         BW= grey > 250;
@@ -124,14 +125,42 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
                 end
             %end
         end
-        hold off
+        
     
     elseif(strcmp(varargin{1},'Manual'))
         [highlights_x,highlights_y]= getpts();
-        highlights_x= highlights_x'
+        highlights_x= highlights_x';
         highlights_y= highlights_y'
         
+    elseif(strcmp(varargin{1},'Full'))
+        disp('Select the points defining the area to study: ');
+        [pointsX, pointsY]= getpts(gcf);
+        init_x= pointsX(1);
+        init_y= pointsY(1);
+        end_x= pointsX(2);
+        end_y= pointsY(2);
+    
+        %plot(init_x,init_y,'x');
+        step = 10;
+        
+        highlights_x= [];
+        highlights_y= [];
+        
+        for i=init_x:step:end_x
+            for j= init_y:step:end_y
+                if((i-sphereCenter_x)^2+(j-sphereCenter_y)^2 < sphereRadiiPixels^2)
+                    highlights_x= [highlights_x i];
+                    highlights_y= [highlights_y j];   
+                    plot(i,j,'x');
+                end
+                
+            end
+            drawnow
+        end
+        
     end
+    
+    hold off
     %sort the highlight points in increasing x (first the lights in the
     %left of the image). This is done for being able to relate lights in
     %the image with the directions calculated later on.
@@ -258,6 +287,14 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
 
         %Finally, be sure axis matches with matlab representation axis:
         worldVectors(2,:) = -worldVectors(2,:);
+        
+        if(length(varargin) ==2 && strcmp(varargin{1},'Full'))
+            %plot error for the full study of lights
+            for i=1:nHighlights
+                error= errorAngle(varargin{2},worldVectors(:,i)');
+                text(highlights_x(i)-2,highlights_y(i)-2,num2str(error,4));
+            end
+        end
 end
 
 %%This function should calculate the first intersection point between a

@@ -78,7 +78,7 @@ function [cameraParameters] = calibrateCamera(n, p)
     
     %%then show the values reprojected, to see the error we are doing in
     %%calibration
-    images = imageSet(fullfile('calibrationImages'));
+    images = imageSet(fullfile('calibrationImages2'));
     imageFileNames= images.ImageLocation;
     
     figure;
