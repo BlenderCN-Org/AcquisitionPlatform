@@ -141,7 +141,7 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         end_y= pointsY(2);
     
         %plot(init_x,init_y,'x');
-        step = 10;
+        step = 4;
         
         highlights_x= [];
         highlights_y= [];
