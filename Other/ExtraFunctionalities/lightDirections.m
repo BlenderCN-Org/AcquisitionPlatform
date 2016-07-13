@@ -106,7 +106,6 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         structsToEliminate= unique(structsToEliminate);
         for i=1:length(structsToEliminate)
             structs(structsToEliminate(i)) =[];
-            structsToEliminate
             if(~isempty(structsToEliminate))
                 structsToEliminate= structsToEliminate-1;
             end
@@ -130,7 +129,7 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     elseif(strcmp(varargin{1},'Manual'))
         [highlights_x,highlights_y]= getpts();
         highlights_x= highlights_x';
-        highlights_y= highlights_y'
+        highlights_y= highlights_y';
         
     elseif(strcmp(varargin{1},'Full'))
         disp('Select the points defining the area to study: ');
@@ -141,7 +140,7 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         end_y= pointsY(2);
     
         %plot(init_x,init_y,'x');
-        step = 4;
+        step = 3;
         
         highlights_x= [];
         highlights_y= [];
@@ -288,11 +287,11 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         %Finally, be sure axis matches with matlab representation axis:
         worldVectors(2,:) = -worldVectors(2,:);
         
-        if(length(varargin) ==2 && strcmp(varargin{1},'Full'))
+        if(length(varargin) ==2)
             %plot error for the full study of lights
             for i=1:nHighlights
                 error= errorAngle(varargin{2},worldVectors(:,i)');
-                text(highlights_x(i)-2,highlights_y(i)-2,num2str(error,4));
+                text(highlights_x(i)-1,highlights_y(i)-1,num2str(error,4));
             end
         end
 end
