@@ -1,7 +1,7 @@
 #include "class_handle.hpp"
 #include "NikonManager.h"
 #include "mat.h"
-
+#include "libraw/libraw.h"
 void setDefaultParameters(NikonManager* nikon)
 {
     MATFile *pmat;
@@ -385,6 +385,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
     }
     
     
+    
     // Set method    
     if (!strcmp("set", function)) 
     {
@@ -448,8 +449,267 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             return;
         }
     }
+    //Capture to disk method
     
-        // Get method    
+    if(!strcmp("captureToDisk",function))
+    {
+                // Check parameters
+        if ( nrhs < 3)
+            mexErrMsgTxt("captureToDisk: Unexpected arguments. Please enter the name of the image as a parameter.");
+		/*First of everything, we have to make sure output variables matches with the Compression Level. 
+		If the compression level is set to NEF + BASIC, the output has to be two matrix, one of them with RAW data,
+		and the other one with JPEG data (Basic Quality).
+		*/
+
+		//First, we need to know the compression Level set in the camera
+            
+		char* attribute_info;
+		int compressionInfo;
+		attribute_info = new char[MAX_ATTRIBUTTEVALUE_LENGHT];
+		nikon->getAttribute(1, attribute_info);
+        compressionInfo= nikon->fromStringToValue(1, attribute_info);
+		//mexPrintf("%d", compressionInfo);
+		delete[]attribute_info;
+            
+        int imagesToRead;
+        int imagesRead = 0;
+	
+            
+		if (compressionInfo == 1 || compressionInfo == 2 || compressionInfo == 3 || compressionInfo == 4)
+		{
+			//case of 1 output (JPEG or RAW)
+			if (nrhs > 3)
+			{
+                    
+				mexErrMsgTxt("The camera is set to deliver one file (JPEG or RAW), so one output is expected. Check Compression Level.");
+				return;
+			}
+            imagesToRead= 1;
+		}
+		else if (compressionInfo == 5 || compressionInfo == 6 || compressionInfo == 7)
+		{
+			//case of 2 output( JPEG + RAW)
+			if (nlhs > 4)
+			{
+                    
+				mexErrMsgTxt("The camera is set to deliver two files (JPEG + RAW), so two outputs are expected as maximum. Check Compression Level.");
+				return;
+			}
+            imagesToRead= 2;
+					
+		}
+            				
+            
+        // Call the method
+        if(!(nikon->capture()))
+            mexErrMsgTxt("Image not captured correctly. Possibly the camera couldn't focus. Please try again, and try to change the focus mode or the camera pose.");
+	
+
+        //wait a given time for the file to be in SDRAM of the camera. This has to be controlled here.
+        switch(compressionInfo)
+        {
+            //THIS COULD BE OPTIMIZED!!!!!!!!!!!!!
+            case 1:
+                //Jpeg Basic
+                Sleep(400);
+                break;
+            case 2:
+                //Jpeg Normal
+                Sleep(550);
+                break;
+            case 3:
+                //Jpeg Fine
+                Sleep(700);
+                break;
+            case 4:
+                //RAw
+                Sleep(1000);
+                break;
+            case 5:
+                //RAW+ Jpeg Basic
+                Sleep(1200);
+                break;
+            case 6:
+                //RAW + Jpeg normal
+                Sleep(1400);
+                break;
+            case 7:
+                //RAW + Jpeg Fine
+                Sleep(1700);
+                break;
+                
+        }
+        
+
+		for (int i = 0; i < (nrhs-2); i++)
+		{
+			nikon->getLastCapture();
+            
+            imagesRead++;
+            mxArray* imageArray;
+
+			if (bufferImage.JpegOrNef == 0)//case of jpeg
+			{	
+                Sleep(300);
+                mxArray *exif[1];
+                
+                if((imagesToRead == 2 && nrhs==4) || (imagesToRead == 1 && nrhs == 3))
+                {
+                    char nameImage[128];
+                    FILE* pFile;
+                    if(nrhs == 3)
+                    {
+                        mxGetString(prhs[2], nameImage, sizeof(nameImage)); 
+                        
+                    }
+                    else if(nrhs == 4)
+                    {
+                        mxGetString(prhs[3], nameImage, sizeof(nameImage));
+                    }
+                    else
+                    {
+                        mexErrMsgTxt("Number of inputs incorrect");
+                    }
+                    
+                    try
+                    {
+                            pFile= fopen(nameImage,"wb");
+                            fwrite(bufferImage.pData,bufferImage.wPhysicalBytes,bufferImage.ulElements,pFile);
+                            fclose(pFile); 
+                    }
+                    catch (int e) 
+                    {
+                        mexErrMsgTxt("Something went wrong writing the image to disk. Probably the path doesn't exist.");
+                        if (pFile) fclose(pFile); 
+                    }
+                }    
+                else
+                {
+             
+                    //this is the case when we need to eliminate the jpeg from RAM, we only want the NEF (RAW).
+                    nikon->closeBufferFile();
+                    nikon->getLastCapture();
+                    
+                      
+                }
+                
+			} 
+			if (bufferImage.JpegOrNef == 1)
+			{
+				//case of nef or tiff (for getting values of Bayer pattern)
+                if(nrhs >= 3)
+                {
+                    
+                    char nameImage[128];
+                    mxGetString(prhs[2], nameImage, sizeof(nameImage));
+                    FILE* pFile;
+                    try
+                    {
+                            pFile= fopen(nameImage,"wb");
+                            fwrite(bufferImage.pData,1,bufferImage.ulElements,pFile);
+                            fclose(pFile); 
+                    }
+                    catch (int e) 
+                    {
+                        mexErrMsgTxt("Something went wrong writing the image to disk. Probably the path doesn't exist.");
+                        if (pFile) fclose(pFile); 
+                    }
+                }
+                
+
+			}
+            imagesRead++;
+            nikon->closeBufferFile(); 
+		}
+            
+        if( imagesRead < imagesToRead)
+        {
+            //be sure of freeing the memory of the images the user didn't acquire.
+            nikon->getLastCapture();
+            nikon->closeBufferFile(); 
+
+        }
+            
+		return;
+
+    }
+    
+    if(!strcmp("captureFromDisk",function))
+    {
+        
+        if(nrhs!=3) mexErrMsgTxt("Number of inputs incorrect. Please enter one input indicating the filename");
+        if(nlhs!=1) mexErrMsgTxt("One output is expected, in order to store the nef file");
+        mxArray *exif[1];
+        char nameImage[128];        
+        mxGetString(prhs[2], nameImage, sizeof(nameImage));
+        
+        mxArray *input[1];
+        input[0]=mxCreateString(nameImage);                    
+        mexCallMATLAB(1,exif,1, input, "getexif");
+        
+        mxArray* imageArray;
+
+        //create struct for storing exif data and image data.
+        const char** fieldnames; //array for storing the fieldnames of the struct
+        
+        fieldnames =(const char**) new char*[2]; //allocate memory with C memory manager for the number of parameters required. Note that in the following line,
+                                                            //memory is allocated with Matlab memory manager, this way Matlab can free the memory when it is needed.
+        mwSize size= (mwSize)MAX_ATTRIBUTTENAME_LENGHT;
+        fieldnames[0]= (char*)mxMalloc(size); 
+        memcpy((void*)fieldnames[0],"Exif",strlen("Exif")+1);
+        fieldnames[1]= (char*)mxMalloc(size); 
+        memcpy((void*)fieldnames[1],"Image",strlen("Image")+1);    
+        plhs[0]=  mxCreateStructMatrix(1,1,2,fieldnames);
+
+        mwSize dims[2];
+		dims[0] = 4020; //height
+		dims[1] = 6036;  //width
+
+		imageArray = mxCreateNumericArray(2, dims, mxUINT16_CLASS, mxREAL);
+
+		unsigned short* buffer = new unsigned short[dims[0] * dims[1]];
+
+		int i, ret,width, height, colours, bits;
+        // Creation of image processing object
+        LibRaw RawProcessor;
+
+        // Let us define variables for convenient access to fields of RawProcessor
+
+        ret = RawProcessor.open_file(nameImage);
+        if(ret!=0) mexErrMsgTxt("The file indicated does not exist. Please check it.");
+        
+        ret = RawProcessor.unpack();
+
+
+        RawProcessor.get_mem_image_format(&width, &height, &colours, &bits);
+
+        for (i = 0; i<width*height; i++)
+        {
+            buffer[i] = (unsigned short)RawProcessor.imgdata.rawdata.raw_image[i];
+        }
+		
+        unsigned short* matrix = (unsigned short*)mxGetData(imageArray);
+		int colourElements = dims[0] * dims[1];
+        mwIndex a= 0, b= 0, c= 0;
+                
+		for (int j = 0; j< dims[1]; j++, b++) //matlab column
+		{
+            c= 0;
+			for (int k = 0; k < dims[0]; k++, a++, c+=dims[1]) //matlab row
+			{
+                matrix[a]= buffer[b + c]; //This is another try of optimizing the code. For the raw images, this doesnt work as well as with JPEG.
+                //matrix[j*dims[0] + k] = buffer[j + k*dims[1]]; 
+			}
+		}
+        mxSetFieldByNumber(plhs[0],0,0, exif[0]);
+        mxSetFieldByNumber(plhs[0],0,1, imageArray);
+        delete[] buffer;
+
+        
+        return;
+    }
+    
+    // Get method    
     if (!strcmp("get", function)) 
     {
             if (nrhs == 2 )
@@ -547,8 +807,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
         
             return;
     }
-    
-        //Range method
+
+    //Range method
     if(!strcmp("range", function))
     {
             if (nrhs <2 || nrhs >3)
@@ -654,6 +914,16 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
             mexErrMsgTxt("Error closing Live Image");
             return;
         }
+    }
+    
+    if(!strcmp("flush",function))
+    {
+        for (int i= 0;i<10;i++)
+        {
+            nikon->getLastCapture();
+            nikon->closeBufferFile(); 
+        }
+        return;
     }
     // Got here, so command not recognized
     mexErrMsgTxt("Command not recognized.");
