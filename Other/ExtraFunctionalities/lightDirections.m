@@ -44,14 +44,9 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     width_cameraFilm= 23.5; %in mm
     height= size(image,1);
     width = size(image,2);
-    heightPerPixel= height_cameraFilm/height;
-    widthPerPixel = width_cameraFilm/width;
-    
-    %calculate K theoretically, to compare with experimental:
-    Ktheoric= [focalLength/widthPerPixel 0  width/2; 0 focalLength/heightPerPixel height/2; 0 0 1];
-    %set K to the value calculated experimentally
-    K= calibrationParam.IntrinsicMatrix';
-    
+    heightPerPixel= height/height_cameraFilm;
+    widthPerPixel = width/width_cameraFilm;
+
     %Now we should get the sphere center and the radius
     f= figure();
     imshow(image);
@@ -60,10 +55,22 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     %Find the sphere to a cercle, by least square method:
     disp('Click some points in the sphere Boundary: ');
     [sphereX, sphereY]= getpts(gcf);
-    [sphereCenter_x, sphereCenter_y,sphereRadiiPixels]= fitCircle(sphereX,sphereY);
+    [sphereCenter_x, sphereCenter_y,sphereRadiiPixels]= fitCircle(sphereX,sphereY)
     
     %plot cercle found
     plotCircle(sphereCenter_x, sphereCenter_y, sphereRadiiPixels);
+        
+
+    %set K to the value calculated experimentally
+    if(isempty(calibrationParam))
+        %calculate K theoretically, to compare with experimental:
+        
+        %Ktheoric= [focalLength/widthPerPixel 0  width/2; 0 focalLength/heightPerPixel height/2; 0 0 1]
+        Ktheoric= [focalLength*widthPerPixel 0  width/2; 0 focalLength*heightPerPixel height/2; 0 0 1]
+        K= Ktheoric;
+    else
+        K= calibrationParam.IntrinsicMatrix';
+    end
     
 
     %---------------DETECT AND PROCESS HIGHLIGHT POINTS--------------------
@@ -106,7 +113,6 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         structsToEliminate= unique(structsToEliminate);
         for i=1:length(structsToEliminate)
             structs(structsToEliminate(i)) =[];
-            structsToEliminate
             if(~isempty(structsToEliminate))
                 structsToEliminate= structsToEliminate-1;
             end
@@ -130,7 +136,7 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     elseif(strcmp(varargin{1},'Manual'))
         [highlights_x,highlights_y]= getpts();
         highlights_x= highlights_x';
-        highlights_y= highlights_y'
+        highlights_y= highlights_y';
         
     elseif(strcmp(varargin{1},'Full'))
         disp('Select the points defining the area to study: ');
@@ -179,22 +185,22 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     %which corresponds to a generall ellipse equation with
     %parameters: A=1, B= 0, C=1, D=-2h, E= -2k, F= h^2+k^2-r^2
     %so general matrix is:      
-    conic = [1.0 0 -sphereCenter_x; 0 1.0 -sphereCenter_y; 
+    conic = [1 0 -sphereCenter_x; 0 1 -sphereCenter_y; 
     -sphereCenter_x -sphereCenter_y sphereCenter_x^2+sphereCenter_y^2-sphereRadiiPixels^2];
     
     %we need real sphere Radii to calculate normal vector (surface vector
     %of the sphere), and the distance to the sphere
-    realSphereRadii= 60; %in mm
+    realSphereRadii= 50; %in mm
     
     %and now we can do the maths to find the sphere Center. Note that in
     %this step we only use intrinsic matrix. The step of finding sphere
     %Center can be done in a lot of diferent ways. 
     conic_normalized = transpose(K)*conic*K;
-    [eigenvectors, eigvalues]= eig(conic_normalized);
+    [eigenvectors, eigvalues]= eig(conic_normalized)
     a= (eigvalues(3,3)+eigvalues(2,2))/2;
     r = sqrt(-eigvalues(1,1)/a);
     d = realSphereRadii*(sqrt(1+r^2))/r;
-    sphereCenter= d*eigenvectors(:,1);
+    sphereCenter= d*eigenvectors(:,1)
     
     
     %%This part is for calculating the rotation Matrices using the angles
@@ -225,6 +231,8 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         %matrix, and we need to use homogeneus coordinates (to transform 2D
         %point in 3D).
         visionVector = inv(K)*highlightPoints(:,i);
+        
+        
         visionVector= visionVector/norm(visionVector);
         
         %find intersection between vision Vector and real Sphere, and
@@ -263,8 +271,13 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         %between camera axis and camera axis:
         %Camera= Rotation1'*World
         %World = Rotation1'*Camera
-        worldVectors= [worldVectors calibrationParam.RotationMatrices(:,:,cameraNumber)'*lightVectors(i,:)'];
         
+        if(~isempty(calibrationParam))
+            worldVectors= [worldVectors calibrationParam.RotationMatrices(:,:,cameraNumber)'*lightVectors(i,:)'];
+        else
+            
+            worldVectors= [worldVectors lightVectors(i,:)'];
+        end
     end
 %         %We can pass to coordinate spheres if needed:
 %         x= lightVectors(i,1);
@@ -286,13 +299,23 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
 %         end
 
         %Finally, be sure axis matches with matlab representation axis:
-        worldVectors(2,:) = -worldVectors(2,:);
+        if(isempty(calibrationParam))
+            y= worldVectors(2,:);
+            worldVectors(2,:)= -worldVectors(3,:);
+            worldVectors(3,:)= -y;
+            %worldVectors(2,:) = -worldVectors(2,:);
+        else
+            worldVectors(2,:) = -worldVectors(2,:);
+        end
+
         
-        if(length(varargin) ==2 && strcmp(varargin{1},'Full'))
+        if(length(varargin) ==2)
             %plot error for the full study of lights
+%             mat=zeros(nHighlights,nHighlights);
             for i=1:nHighlights
                 error= errorAngle(varargin{2},worldVectors(:,i)');
-                text(highlights_x(i)-2,highlights_y(i)-2,num2str(error,4));
+                text(highlightPoints(1,i)-1,highlightPoints(2,i)-1,num2str(error,4));
+
             end
         end
 end
