@@ -39,6 +39,9 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     %occuped by each pixel in the camera film, and the imageCenter_x is
     %the center of the image. 
     
+    [c,r,l] = borrar('renderedImages\lightPoint\test3.jpg');
+    
+    
     
     height_cameraFilm= 15.6; %in mm
     width_cameraFilm= 23.5; %in mm
@@ -51,12 +54,15 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     f= figure();
     imshow(image);
     hold on
-    
     %Find the sphere to a cercle, by least square method:
-    disp('Click some points in the sphere Boundary: ');
-    [sphereX, sphereY]= getpts(gcf);
-    [sphereCenter_x, sphereCenter_y,sphereRadiiPixels]= fitCircle(sphereX,sphereY)
     
+    disp('Click some points in the sphere Boundary: ');
+    %[sphereX, sphereY]= getpts(gcf);
+    %[sphereCenter_x, sphereCenter_y,sphereRadiiPixels]= fitCircle(sphereX,sphereY)
+    
+    sphereCenter_x= c(1);
+    sphereCenter_y= c(2);
+    sphereRadiiPixels= r;
     %plot cercle found
     plotCircle(sphereCenter_x, sphereCenter_y, sphereRadiiPixels);
         
@@ -66,7 +72,7 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         %calculate K theoretically, to compare with experimental:
         
         %Ktheoric= [focalLength/widthPerPixel 0  width/2; 0 focalLength/heightPerPixel height/2; 0 0 1]
-        Ktheoric= [focalLength*widthPerPixel 0  width/2; 0 focalLength*heightPerPixel height/2; 0 0 1]
+        Ktheoric= [focalLength*widthPerPixel 0  width/2; 0 focalLength*heightPerPixel height/2; 0 0 1];
         K= Ktheoric;
     else
         K= calibrationParam.IntrinsicMatrix';
@@ -76,7 +82,7 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     %---------------DETECT AND PROCESS HIGHLIGHT POINTS--------------------
     %%detect highlight points. It could be done either automatically or
     %%manually.
-    if( length(varargin) == 0 || (length(varargin)==1 && strcmp(varargin{1},'Auto'))) 
+    if( length(varargin) == 0 || (strcmp(varargin{1},'Auto'))) 
    
         grey= rgb2gray(image);
         BW= grey > 250;
@@ -134,9 +140,9 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         
     
     elseif(strcmp(varargin{1},'Manual'))
-        [highlights_x,highlights_y]= getpts();
-        highlights_x= highlights_x';
-        highlights_y= highlights_y';
+%         [highlights_x,highlights_y]= getpts();
+%         highlights_x= highlights_x';
+%         highlights_y= highlights_y';
         
     elseif(strcmp(varargin{1},'Full'))
         disp('Select the points defining the area to study: ');
@@ -147,7 +153,7 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         end_y= pointsY(2);
     
         %plot(init_x,init_y,'x');
-        step = 10;
+        step = 7;
         
         highlights_x= [];
         highlights_y= [];
@@ -167,13 +173,18 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     end
     
     hold off
+    
+    
     %sort the highlight points in increasing x (first the lights in the
     %left of the image). This is done for being able to relate lights in
     %the image with the directions calculated later on.
-    highlightPoints = [highlights_x; highlights_y];
+    %highlightPoints = [highlights_x; highlights_y];
+    highlightPoints= [l(1); l(2)];
+    hold on
+    plot(l(1),l(2),'c*');
     [~, order] = sort(highlightPoints(1,:));
     highlightPoints = highlightPoints(:,order);
-    
+    hold off
     
     %now, we need to know conic matrices corresponding to
     %the sphere. The ellipse equation has the form= Ax^2+Bxy+Cy^2+Dx+Ey+F=0
@@ -184,23 +195,23 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     %a center at point (h,k) satisfies the following => (x-h)^2 + (y-k)^2 = r^2
     %which corresponds to a generall ellipse equation with
     %parameters: A=1, B= 0, C=1, D=-2h, E= -2k, F= h^2+k^2-r^2
-    %so general matrix is:      
+    %so general matrix is:
     conic = [1 0 -sphereCenter_x; 0 1 -sphereCenter_y; 
     -sphereCenter_x -sphereCenter_y sphereCenter_x^2+sphereCenter_y^2-sphereRadiiPixels^2];
     
     %we need real sphere Radii to calculate normal vector (surface vector
     %of the sphere), and the distance to the sphere
-    realSphereRadii= 50; %in mm
+    realSphereRadii= varargin{3}; %in mm
     
     %and now we can do the maths to find the sphere Center. Note that in
     %this step we only use intrinsic matrix. The step of finding sphere
     %Center can be done in a lot of diferent ways. 
     conic_normalized = transpose(K)*conic*K;
-    [eigenvectors, eigvalues]= eig(conic_normalized)
+    [eigenvectors, eigvalues]= eig(conic_normalized);
     a= (eigvalues(3,3)+eigvalues(2,2))/2;
     r = sqrt(-eigvalues(1,1)/a);
     d = realSphereRadii*(sqrt(1+r^2))/r;
-    sphereCenter= d*eigenvectors(:,1)
+    sphereCenter= d*eigenvectors(:,1);
     
     
     %%This part is for calculating the rotation Matrices using the angles
