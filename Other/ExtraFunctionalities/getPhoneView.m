@@ -7,7 +7,7 @@ function getPhoneView( varargin )
 
     url= 'http://';
     if(isempty(varargin))
-        url= strcat(url,'192.168.11.82:8080');
+        url= strcat(url,'158.109.8.123:8080');
     end
 
     if(length(varargin) == 1)
@@ -26,3 +26,5 @@ function getPhoneView( varargin )
     end
 end
 
+% 'url/photo.jpg' --> photo without autofocus 
+% 'url/photoaf.jpg' --> photo with autofocus
