@@ -1,4 +1,4 @@
-function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,cameraNumber,varargin)
+function [worldVectors, err] = lightDirections(image, calibrationParam,cameraNumber,varargin)
 % lightDirections Function to get the light directions from a sphere. This
 % function is able to detect highlight points in a sphere, and returns its
 % direction in a world Coordinate system. 
@@ -38,8 +38,18 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     %where f is focal length, widthPerPixel is the distance (horizontal)
     %occuped by each pixel in the camera film, and the imageCenter_x is
     %the center of the image. 
+
+    focalLength= 35;
+    if(length(varargin)>5)
+        if(strcmp(varargin{5},'radii') || strcmp(varargin{5},'highlight_x') || strcmp(varargin{5},'highlight_y'))
+            [c,r,l]= borrar(image,varargin{5},varargin{6});
+        else
+            error('Error in the inputs entered.');
+        end
+    else
+        [c,r,l] = borrar(image);
+    end
     
-    [c,r,l] = borrar(image);
     
     height_cameraFilm= 15.6; %in mm
     width_cameraFilm= 23.5; %in mm
@@ -49,9 +59,13 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     widthPerPixel = width/width_cameraFilm;
 
     %Now we should get the sphere center and the radius
-    f= figure();
-    imshow(image);
-    hold on
+
+    if(~strcmp(varargin{4},'Background'))
+       f= figure();
+       imshow(image);
+       hold on
+    end
+
     %Find the sphere to a cercle, by least square method:
     
 %     disp('Click some points in the sphere Boundary: ');
@@ -85,7 +99,8 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
     if( length(varargin) == 0 || (strcmp(varargin{1},'Auto'))) 
         highlights_x= l(1);
         highlights_y= l(2);
-    
+        plot(highlights_x,highlights_y,'x');
+        
     elseif(strcmp(varargin{1},'Manual'))
         [highlights_x,highlights_y]= getpts();
         highlights_x= highlights_x';
@@ -118,20 +133,20 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
         end
         
     end
-    
-    hold off
-    
+    if(~strcmp(varargin{4},'Background') || isempty(varargin{4}))
+        hold off
+    end
     
     %sort the highlight points in increasing x (first the lights in the
     %left of the image). This is done for being able to relate lights in
     %the image with the directions calculated later on.
     highlightPoints = [highlights_x; highlights_y];
 
-    hold on
+
     %plot(l(1),l(2),'c*');
     [~, order] = sort(highlightPoints(1,:));
     highlightPoints = highlightPoints(:,order);
-    hold off
+
     
     %now, we need to know conic matrices corresponding to
     %the sphere. The ellipse equation has the form= Ax^2+Bxy+Cy^2+Dx+Ey+F=0
@@ -266,13 +281,15 @@ function [ worldVectors] = lightDirections(image, focalLength, calibrationParam,
             worldVectors(2,:) = -worldVectors(2,:);
         end
 
+        err= [];
         
-        if(length(varargin) ==2)
+        if(length(varargin) >=2)
             %plot error for the full study of lights
 %             mat=zeros(nHighlights,nHighlights);
             for i=1:nHighlights
-                error= errorAngle(varargin{2},worldVectors(:,i)');
-                text(highlightPoints(1,i)-1,highlightPoints(2,i)-1,num2str(error,4));
+                tmp= errorAngle(varargin{2},worldVectors(:,i)');
+                err= [err tmp ];
+                text(highlightPoints(1,i)-1,highlightPoints(2,i)-1,num2str(tmp,4));
 
             end
         end

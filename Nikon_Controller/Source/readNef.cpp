@@ -1,16 +1,20 @@
 #include "libraw/libraw.h"
 #include "mex.h"
+//call this function with 1 string: name of the image, for getting the image without the exif
+//call this function with 2 strings: name of the image + 'exif' for getting the image with the exif 
+
+//compile this file on matlab doing: mex readNef.cpp libraw/libraw.lib. The resulting mex should be used along with the libraw dll, which is already compiled. 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
 {
-        if(nrhs!=1) mexErrMsgTxt("Number of inputs incorrect. Please enter one input indicating the filename");
+        if(nrhs>2) mexErrMsgTxt("Number of inputs incorrect. Please enter one input indicating the filename, and one optional parameter indicating if you want the exif.");
         if(nlhs!=1) mexErrMsgTxt("One output is expected, in order to store the nef file");
         mxArray *exif[1];
         char nameImage[128];        
         mxGetString(prhs[0], nameImage, sizeof(nameImage));
         
         mxArray *input[1];
-        input[0]=mxCreateString(nameImage);                    
-        mexCallMATLAB(1,exif,1, input, "getexif");
+        input[0]=mxCreateString(nameImage);
+        if(nrhs>1) mexCallMATLAB(1,exif,1, input, "getexif");
         
         mxArray* imageArray;
 
@@ -66,7 +70,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[])
                 //matrix[j*dims[0] + k] = buffer[j + k*dims[1]]; 
 			}
 		}
-        mxSetFieldByNumber(plhs[0],0,0, exif[0]);
+        if(nrhs>1) mxSetFieldByNumber(plhs[0],0,0, exif[0]);
         mxSetFieldByNumber(plhs[0],0,1, imageArray);
         delete[] buffer;
 
