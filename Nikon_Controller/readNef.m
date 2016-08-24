@@ -15,8 +15,6 @@ function [outputImage] = readNef(pathImage, varargin)
 %   -exif: Does return exif. Anyways, the exif is needed for white balance
 %   calculation, so if the white balance is 'on', the exif will always be
 %   returned.
-%   -bits: bits per element. Per default is 8.
-%           -Possible values: 8, 16.
 %
 %SOME EXAMPLES:
 %   image= readNef('image.nef','White Balance','off') --> returns the image
@@ -30,17 +28,16 @@ function [outputImage] = readNef(pathImage, varargin)
 %   returns the image MxN non demosaiced, without the white balance 
 %   aplied, along with the exif file. 
 %
-%   image= readNef('image.nef','i',12,'bits',16) --> returns the image
+%   image= readNef('image.nef','i',12) --> returns the image
 %   MxNx3 already demosaiced, with the auto white balance aplied, along 
-%   with the exif file, with an intensity scale of 12, and 16 bits per 
-%   sample. 
+%   with the exif file, with an intensity scale of 12.
 %
 %   image= readNef('image.nef','i',1) --> returns the image
 %   MxNx3 already demosaiced, with the white balance aplied, along with the
 %   exif file, with an intensity adjustement of 1 (no conversion from 14
 %   bits to 16 is done).
 
-validInputs= {'White Balance','Demosaic','Exif','Intensity Multiplier','bits'};
+validInputs= {'White Balance','Demosaic','Exif','Intensity Multiplier'};
 
 intensityMultiplier = 4; %this multiplier is for doing the conversion from 14 to 16 bits. 
 %(Nef files are 14 bits, and images of 16 bits are returned, so there has 
@@ -52,7 +49,7 @@ demosaicImage= true;
 
 exif= false;
 WBfactors= [];
-eightBits= true;
+
 
 nInputs= length(varargin);
 skipIteration= false;
@@ -105,29 +102,10 @@ for i=1:nInputs
             end
             intensityMultiplier= varargin{i+1};
             skipIteration= true;
-        elseif(strcmp('bits',input))
-            if(isnumeric(varargin{i+1}))
-                if(varargin{i+1}==8)
-                    eightBits= true;
-                elseif(varargin{i+1}==16)
-                    eightBits=false;
-                else
-                    error('The value for the bits must be either 8 or 16.');
-                end
-            else
-                error('The value for the bits parameters must be a number');
-            end
-            skipIteration= true;
         end
     else
         skipIteration= false;
     end
-end
-
-if(eightBits)
-    maxValue=255;
-else
-    maxValue=65535;
 end
 
 if(exif || autoWhiteBalance)
@@ -136,7 +114,7 @@ if(exif || autoWhiteBalance)
     [found,index]= ismember('ISO',listParameters);
     if(found)
         isoValue= str2double(listParameters{index+2});
-        if(isoValue > 1000)
+        if(isoValue >= 800)
             warning('The image was taken with an ISO of %d (Too High). This could produce noisy images, so consider a lower ISO.',isoValue);
         end
     end
@@ -171,16 +149,12 @@ if(~isempty(WBfactors))
 end
 
 if(demosaicImage)
-    image.Image= demosaic(image.Image,'rggb'); 
-end
-
-if(eightBits)
-   image.Image= uint8(image.Image/((2^8)-1)); 
+    image.Image= double(demosaic(image.Image,'rggb')); 
 end
 
 if(whiteBalancePoint)
     if(~demosaicImage)
-        image.Image= demosaic(image.Image,'rggb');
+        image.Image= double(demosaic(image.Image,'rggb'));
     end
     disp('Select the point in the image you want to use as white reference');
     imshow(image.Image);
@@ -191,20 +165,18 @@ if(whiteBalancePoint)
     redBalance= (double(image.Image(y,x,2))/double(image.Image(y,x,1)));
     blueBalance= (double(image.Image(y,x,2))/double(image.Image(y,x,3)));
     greenBalance=1;
-    %OPTION2: Scale with respect maximum value (8 bits--> 255, 16 bits-->65535)
-%     redBalance= maxValue/double(image.Image(y,x,1));
-%     blueBalance= maxValue/double(image.Image(y,x,3));
-%     greenBalance= maxValue/double(image.Image(y,x,2));
 
     image.Image(:,:,1)= image.Image(:,:,1)*redBalance;
-    image.Image(:,:,2)= image.Image(:,:,2)*greenBalance;
-    image.Image(:,:,3)= image.Image(:,:,3)*blueBalance;
+    image.Image(:,:,2)= image.Image(:,:,2)*redBalance;
+    image.Image(:,:,3)= image.Image(:,:,3)*redBalance;
     
     close all
     imshow(image.Image);
 end
 
-
+if(demosaicImage)
+    image.Image = image.Image/max(image.Image(:));
+end    
 outputImage= image;
 
 end
