@@ -1,45 +1,58 @@
 function [outputImage] = readNef(pathImage, varargin)
-%readNef use this function to read Nef from files. 
+%readNef Read .nef image information and process it in to an image. The
+%output depends on the settings entered. The default settings are the
+%following:
+%
 %DEFAULT SETTINGS:
-%   -White Balance: 'On'. (Does apply white balance). 
-%   -intensityMultiplier= 4. (Conversion from 14 bits to 16)
-%   -demosaic: Does not demosaic (bayer pattern values returned)
-%   -exif: Does not return exif. Anyways, the exif is needed for white balance
-%   calculation, so if the white balance is 'on', the exif will be
+%   -White Balance: 'On'. (Does apply white balance).
+%           -Possible values: 'on','off','reference',[RedBalance
+%           BlueBalance], [RedBalance BlueBalance Green1Balance],
+%           [RedBalance BlueBalance Green1Balance Green2Balance].
+%   -intensityMultiplier= 4. (Conversion from 14 bits to 16 has to be done)
+%           -Possible values: Any number
+%   -demosaic: 'on' Does demosaic.
+%           -Possible values: 'on','off'
+%   -exif: Does return exif. Anyways, the exif is needed for white balance
+%   calculation, so if the white balance is 'on', the exif will always be
 %   returned.
+%   -bits: bits per element. Per default is 8.
+%           -Possible values: 8, 16.
 %
 %SOME EXAMPLES:
-%   image= readNef('image.nef','White Balance','off') --> returns the bayer
-%   pattern values without the white balance correction.
+%   image= readNef('image.nef','White Balance','off') --> returns the image
+%   MxNx3 already demosaiced but without the auto white balance correction.
 %
 %   image= readNef('image.nef','W',[3.2134,1.54343]) --> returns the
-%   bayer pattern values with the white balance indicated.
+%   image MxNx3 already demosaiced with the red balance and blue balance
+%   indicated.
 %
-%   image= readNef('image.nef','w','off',demosaic','exif') --> returns the image
-%   MxNx3 already demosaiced, without the white balance aplied, along with the
-%   exif file. 
+%   image= readNef('image.nef','w','off',demosaic','off','exif') --> 
+%   returns the image MxN non demosaiced, without the white balance 
+%   aplied, along with the exif file. 
 %
-%   image= readNef('image.nef','d','e') --> returns the image
+%   image= readNef('image.nef','i',12,'bits',16) --> returns the image
+%   MxNx3 already demosaiced, with the auto white balance aplied, along 
+%   with the exif file, with an intensity scale of 12, and 16 bits per 
+%   sample. 
+%
+%   image= readNef('image.nef','i',1) --> returns the image
 %   MxNx3 already demosaiced, with the white balance aplied, along with the
-%   exif file. 
-%
-%   image= readNef('image.nef','d','e','i',1) --> returns the image
-%   MxNx3 already demosaiced, with the white balance aplied, along with the
-%   exif file, without an intensity adjustement of 1 (no conversion from 14
+%   exif file, with an intensity adjustement of 1 (no conversion from 14
 %   bits to 16 is done).
 
-validInputs= {'White Balance','Demosaic','Exif','Intensity Multiplier'};
+validInputs= {'White Balance','Demosaic','Exif','Intensity Multiplier','bits'};
 
-intensityMultiplier = 3; %this multiplier is for doing the conversion from 14 to 16 bits. 
+intensityMultiplier = 4; %this multiplier is for doing the conversion from 14 to 16 bits. 
 %(Nef files are 14 bits, and images of 16 bits are returned, so there has 
 % be some conversion)
 
-whiteBalance= true;
+autoWhiteBalance= true;
 whiteBalancePoint= false;
-demosaicImage= false;
+demosaicImage= true;
 
 exif= false;
 WBfactors= [];
+eightBits= true;
 
 nInputs= length(varargin);
 skipIteration= false;
@@ -52,16 +65,17 @@ for i=1:nInputs
             end
             if(ischar(varargin{i+1}))
                 if(strcmp(varargin{i+1},'on'))
-                    whiteBalance= true;
+                    autoWhiteBalance= true;
                 elseif(strcmp(varargin{i+1},'off'))
-                    whiteBalance= false;
+                    autoWhiteBalance= false;
                 elseif(strcmp(varargin{i+1},'reference'))
                     whiteBalancePoint=true;
-                    whiteBalance=false;
+                    autoWhiteBalance=false;
                 else
                     error('The value of White Balance should be ''on'' or ''off''');
                 end
             elseif(isnumeric(varargin{i+1}))
+                autoWhiteBalance= false;
                 WBfactors= varargin{i+1};
                 if(length(WBfactors)<2 || length(WBfactors)>4)
                     error('The length of the array of custom White Balance should be ranging from 2 to 4. The order should be: R,B,G1,G2');
@@ -70,6 +84,16 @@ for i=1:nInputs
             skipIteration= true;
         elseif(strcmp('Demosaic',input))
             demosaicImage= true;
+            if(ischar(varargin{i+1}))
+                if(strcmp(varargin{i+1},'on'))
+                    demosaicImage= true;
+                elseif(strcmp(varargin{i+1},'off'))
+                    demosaicImage= false;
+                else
+                    error('The value of demosaic should be ''on'' or ''off''');
+                end
+            end
+            skipIteration=true;
         elseif(strcmp('Exif',input))
             exif= true;
         elseif(strcmp('Intensity Multiplier',input))
@@ -81,19 +105,46 @@ for i=1:nInputs
             end
             intensityMultiplier= varargin{i+1};
             skipIteration= true;
+        elseif(strcmp('bits',input))
+            if(isnumeric(varargin{i+1}))
+                if(varargin{i+1}==8)
+                    eightBits= true;
+                elseif(varargin{i+1}==16)
+                    eightBits=false;
+                else
+                    error('The value for the bits must be either 8 or 16.');
+                end
+            else
+                error('The value for the bits parameters must be a number');
+            end
+            skipIteration= true;
         end
     else
         skipIteration= false;
     end
 end
 
-if(exif || whiteBalance)
+if(eightBits)
+    maxValue=255;
+else
+    maxValue=65535;
+end
+
+if(exif || autoWhiteBalance)
     image= mex_readNef(pathImage,'exif');
+    listParameters= strsplit(image.Exif);
+    [found,index]= ismember('ISO',listParameters);
+    if(found)
+        isoValue= str2double(listParameters{index+2});
+        if(isoValue > 1000)
+            warning('The image was taken with an ISO of %d (Too High). This could produce noisy images, so consider a lower ISO.',isoValue);
+        end
+    end
 else
     image= mex_readNef(pathImage);
 end
 
-if(whiteBalance)
+if(autoWhiteBalance)
     listParameters= strsplit(image.Exif);
     [found,index]= ismember('WB_RBLevels',listParameters);
     if(found)
@@ -119,25 +170,36 @@ if(~isempty(WBfactors))
     end
 end
 
-%scale= (2^16-1)/max(image.Image(:));
-%image.Image= image.Image*scale;
-image.Image= image.Image*intensityMultiplier;
-
-
 if(demosaicImage)
     image.Image= demosaic(image.Image,'rggb'); 
 end
 
+if(eightBits)
+   image.Image= uint8(image.Image/((2^8)-1)); 
+end
+
 if(whiteBalancePoint)
+    if(~demosaicImage)
+        image.Image= demosaic(image.Image,'rggb');
+    end
     disp('Select the point in the image you want to use as white reference');
     imshow(image.Image);
     [x,y]= getpts;
     x= round(x);
     y= round(y);
-    redBalance= image.Image(y,x,2)/image.Image(y,x,1);
-    blueBalance= image.Image(y,x,2)/image.Image(y,x,3);
+    %OPTION1: Scale with respect the green value
+    redBalance= (double(image.Image(y,x,2))/double(image.Image(y,x,1)));
+    blueBalance= (double(image.Image(y,x,2))/double(image.Image(y,x,3)));
+    greenBalance=1;
+    %OPTION2: Scale with respect maximum value (8 bits--> 255, 16 bits-->65535)
+%     redBalance= maxValue/double(image.Image(y,x,1));
+%     blueBalance= maxValue/double(image.Image(y,x,3));
+%     greenBalance= maxValue/double(image.Image(y,x,2));
+
     image.Image(:,:,1)= image.Image(:,:,1)*redBalance;
+    image.Image(:,:,2)= image.Image(:,:,2)*greenBalance;
     image.Image(:,:,3)= image.Image(:,:,3)*blueBalance;
+    
     close all
     imshow(image.Image);
 end
