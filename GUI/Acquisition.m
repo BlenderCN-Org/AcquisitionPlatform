@@ -22,7 +22,7 @@ function varargout = Acquisition(varargin)
 
 % Edit the above text to modify the response to help Acquisition
 
-% Last Modified by GUIDE v2.5 26-Aug-2016 15:57:51
+% Last Modified by GUIDE v2.5 31-Aug-2016 16:37:53
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -628,33 +628,489 @@ function MinimumValueInc_CreateFcn(hObject, eventdata, handles)
 end
 
 
-% --- Executes on button press in testButton.
-function testButton_Callback(hObject, eventdata, handles)
-% hObject    handle to testButton (see GCBO)
+% --- Executes on selection change in ObjectsAvailableList.
+function ObjectsAvailableList_Callback(hObject, eventdata, handles)
+% hObject    handle to ObjectsAvailableList (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-    axis= handles.axes3;
-    imshow(imread('test1.png','BackgroundColor',[1 1 1]));
+
+% Hints: contents = cellstr(get(hObject,'String')) returns ObjectsAvailableList contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from ObjectsAvailableList
+end
+
+% --- Executes during object creation, after setting all properties.
+function ObjectsAvailableList_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to ObjectsAvailableList (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: listbox controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+    global positions_x
+    global positions_y
+    global orientations
+    positions_x= {};
+    positions_y= {};
+    orientations = {};
+
+    %Read available objects
+    objects= {'Test Object 1', 'Test Object 2', 'Test Object 3'};
+    objects= sort(objects);
+    set(hObject,'String',objects);
+    
+    
+
 end
 
 
-% --- Executes on mouse press over axes background.
-function previewAxis_ButtonDownFcn(hObject, eventdata, handles)
-% hObject    handle to previewAxis (see GCBO)
+% --- Executes on button press in ToActiveObjects.
+function ToActiveObjects_Callback(hObject, eventdata, handles)
+% hObject    handle to ToActiveObjects (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-    axis= hObject;
-    imshow(imread('test1.png','BackgroundColor',[1 1 1]));
+    
+    global positions_x
+    global positions_y
+    global orientations
+
+    %X position 
+    xAvailables= get(handles.XPositionAvailable,'String');
+    xValue= get(handles.XPositionAvailable, 'Value');
+
+    %Y position
+    yAvailables= get(handles.YPositionAvailable,'String');
+    yValue= get(handles.YPositionAvailable,'Value');
+
+    %orientations
+    orientationAvailable= get(handles.OrientationAvailable,'String');
+    orientationValue= get(handles.OrientationAvailable,'Value');
+    
+    if(isempty(find(strcmp([positions_x(:)],xAvailables(xValue)))) || isempty(find(strcmp([positions_y(:)],yAvailables(yValue)))))
+        positions_x= [positions_x xAvailables(xValue)];
+        positions_y= [positions_y yAvailables(yValue)];
+        orientations= [orientations orientationAvailable(orientationValue)];
+        %Name Object
+        namesObjects= get(handles.ObjectsAvailableList,'String');
+        valueName= get(handles.ObjectsAvailableList,'Value');
+        set(handles.ObjectsInTableList,'String',[get(handles.ObjectsInTableList,'String'); namesObjects(valueName)]);
+        namesObjects(valueName)=[];
+        set(handles.ObjectsAvailableList,'String',namesObjects);
+        ObjectsInTableList_Callback(handles.ObjectsInTableList,[],handles);
+        set(handles.ObjectsInTableList,'Value',1);
+        set(handles.ObjectsAvailableList,'Value',1);
+    else
+        errordlg('The table already has an object at that position. Please select another position.','Position occupied');
+    end
+
+    
+    
+
+    
+    %Orientation
+    
+end
+
+% --- Executes on button press in ToDeactivedObjects.
+function ToDeactivedObjects_Callback(hObject, eventdata, handles)
+% hObject    handle to ToDeactivedObjects (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    global positions_x
+    global positions_y
+    global orientations
+    
+    names= get(handles.ObjectsInTableList,'String');
+    value= get(handles.ObjectsInTableList,'Value');
+    if(~isempty(names))
+        availableObjects= get(handles.ObjectsAvailableList,'String');
+        availableObjects= sort([availableObjects; names(value)]);
+        set(handles.ObjectsAvailableList,'String',availableObjects);
+        set(handles.ObjectsInTableList,'Value',1);
+        set(handles.ObjectsAvailableList,'Value',1);
+        names(value) = [];
+        set(handles.ObjectsInTableList,'String',names);
+        positions_x(value)=[];
+        positions_y(value)=[];
+        orientations(value)= [];
+        
+    end
+    ObjectsInTableList_Callback(handles.ObjectsInTableList,[],handles);
+    
+end
+
+% --- Executes on selection change in ObjectsInTableList.
+function ObjectsInTableList_Callback(hObject, eventdata, handles)
+% hObject    handle to ObjectsInTableList (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns ObjectsInTableList contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from ObjectsInTableList
+
+    global positions_x
+    global positions_y
+    global orientations
+    
+    names= get(hObject,'String');
+    value= get(hObject,'Value');
+    if(isempty(names))
+        set(handles.XPositionDisplay,'String','?');
+        set(handles.YPositionDisplay,'String','?');
+        set(handles.OrientationDisplay,'String','?');
+    else
+        set(handles.XPositionDisplay,'String',positions_x(value));
+        set(handles.YPositionDisplay,'String',positions_y(value));
+        set(handles.OrientationDisplay,'String',orientations(value));
+    end
+end
+
+% --- Executes during object creation, after setting all properties.
+function ObjectsInTableList_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to ObjectsInTableList (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: listbox controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function lightsImage_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to lightsImage (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: place code in OpeningFcn to populate lightsImage
+    global positionsLightsImage
+    global lightsInformation
+    lightsInformation= {}; %The information of the lights will be stored in a cell array
+    %in the following format: [R G B]
+    positionsLightsImage= [50 171 167 173 295 173 51 94 168 94 294 95 51 16 168 16 295 16];
+    
+    axis(hObject);
+    i= imread('GUI_Images/llums.png');
+    imshow(i);
+    hold on;
+    for i=1:2:length(positionsLightsImage) %print Light
+        rectangle('Position',[positionsLightsImage(i) positionsLightsImage(i+1) 26 26],'FaceColor',[0 0 0],'Curvature',[1 1]);
+        lightsInformation{ceil(i/2)} = [0 0 0];
+    end
+    
+    hold off;
+end
+
+function refreshColors(handles,lightNumber)
+%handles    structure with handles and user data
+%lightNumber number of the light we want to refresh, 0 if all the lights.
+    global lightsInformation
+    axis(handles.lightsImage);
+    hold on;
+    if(lightNumber== 0)
+        for i=1:2:length(positionsLightsImage) %print Light
+            info= lightsInformation{ceil(i/2)};
+            
+            rectangle('Position',[positionsLightsImage(i) positionsLightsImage(i+1) 26 26],'FaceColor',[info(1) info(2) info(3)],'Curvature',[1 1]);
+        end
+    else
+        info= lightsInformation{lightNumber};
+        i= (lightNumber-1)*2 +1;
+        rectangle('Position',[positionsLightsImage(i) positionsLightsImage(i+1) 26 26],'FaceColor',[info(1) info(2) info(3)],'Curvature',[1 1]); 
+    end
+    hold off;
+end
+
+
+% --- Executes on button press in Light1Selector.
+function Light1Selector_Callback(hObject, eventdata, handles)
+% hObject    handle to Light1Selector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of Light1Selector
+end
+
+
+% --- Executes on button press in Light4Selector.
+function Light4Selector_Callback(hObject, eventdata, handles)
+% hObject    handle to Light4Selector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of Light4Selector
+
+end
+
+% --- Executes on button press in Light7Selector.
+function Light7Selector_Callback(hObject, eventdata, handles)
+% hObject    handle to Light7Selector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of Light7Selector
+end
+
+
+% --- Executes on button press in Light8Selector.
+function Light8Selector_Callback(hObject, eventdata, handles)
+% hObject    handle to Light8Selector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of Light8Selector
+end
+
+% --- Executes on button press in Light5Selector.
+function Light5Selector_Callback(hObject, eventdata, handles)
+% hObject    handle to Light5Selector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of Light5Selector
+end
+
+% --- Executes on button press in Light2Selector.
+function Light2Selector_Callback(hObject, eventdata, handles)
+% hObject    handle to Light2Selector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of Light2Selector
+end
+
+% --- Executes on button press in Light9Selector.
+function Light9Selector_Callback(hObject, eventdata, handles)
+% hObject    handle to Light9Selector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of Light9Selector
+end
+
+% --- Executes on button press in Light6Selector.
+function Light6Selector_Callback(hObject, eventdata, handles)
+% hObject    handle to Light6Selector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of Light6Selector
+end
+
+% --- Executes on button press in Light3Selector.
+function Light3Selector_Callback(hObject, eventdata, handles)
+% hObject    handle to Light3Selector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of Light3Selector
+end
+
+
+% --- Executes on button press in startButton.
+function startButton_Callback(hObject, eventdata, handles)
+% hObject    handle to startButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --- Executes on button press in previewButton.
+function previewButton_Callback(hObject, eventdata, handles)
+% hObject    handle to previewButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+
+% --- Executes on selection change in lightNumberSelector.
+function lightNumberSelector_Callback(hObject, eventdata, handles)
+% hObject    handle to lightNumberSelector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns lightNumberSelector contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from lightNumberSelector
 
 end
 
 
-% --- Executes on mouse press over axes background.
-function axes3_ButtonDownFcn(hObject, eventdata, handles)
-% hObject    handle to axes3 (see GCBO)
+
+% --- Executes on selection change in RedMode.
+function RedMode_Callback(hObject, eventdata, handles)
+% hObject    handle to RedMode (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-    axis= hObject;
-    disp('a');
-    cla(axis,'reset');
+
+% Hints: contents = cellstr(get(hObject,'String')) returns RedMode contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from RedMode
+
+end
+
+
+% --- Executes on selection change in BlueMode.
+function BlueMode_Callback(hObject, eventdata, handles)
+% hObject    handle to BlueMode (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns BlueMode contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from BlueMode
+
+
+end
+
+
+% --- Executes on selection change in GreenMode.
+function GreenMode_Callback(hObject, eventdata, handles)
+% hObject    handle to GreenMode (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns GreenMode contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from GreenMode
+end
+
+% --- Executes on slider movement.
+function RedSlider_Callback(hObject, eventdata, handles)
+% hObject    handle to RedSlider (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+
+
+end
+
+
+function RedNumber_Callback(hObject, eventdata, handles)
+% hObject    handle to RedNumber (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of RedNumber as text
+%        str2double(get(hObject,'String')) returns contents of RedNumber as a double
+
+
+end
+
+
+
+function edit18_Callback(hObject, eventdata, handles)
+% hObject    handle to edit18 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of edit18 as text
+%        str2double(get(hObject,'String')) returns contents of edit18 as a double
+end
+
+% --- Executes during object creation, after setting all properties.
+function edit18_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to edit18 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+
+% --- Executes on slider movement.
+function GreenSlider_Callback(hObject, eventdata, handles)
+% hObject    handle to GreenSlider (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+
+end
+
+% --- Executes during object creation, after setting all properties.
+function GreenSlider_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to GreenSlider (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+end
+
+
+function GreenValue_Callback(hObject, eventdata, handles)
+% hObject    handle to GreenValue (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of GreenValue as text
+%        str2double(get(hObject,'String')) returns contents of GreenValue as a double
+end
+
+% --- Executes during object creation, after setting all properties.
+function GreenValue_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to GreenValue (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+end
+
+% --- Executes on slider movement.
+function BlueSlider_Callback(hObject, eventdata, handles)
+% hObject    handle to BlueSlider (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'Value') returns position of slider
+%        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
+end
+
+% --- Executes during object creation, after setting all properties.
+function BlueSlider_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to BlueSlider (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: slider controls usually have a light gray background.
+if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor',[.9 .9 .9]);
+end
+
+end
+
+function BlueValue_Callback(hObject, eventdata, handles)
+% hObject    handle to BlueValue (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of BlueValue as text
+%        str2double(get(hObject,'String')) returns contents of BlueValue as a double
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function ActiveLightsText_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to ActiveLightsText (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+    
+    global activeLights
+    activeLights= [];
+    
 end
