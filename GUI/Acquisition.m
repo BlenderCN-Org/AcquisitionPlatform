@@ -22,7 +22,7 @@ function varargout = Acquisition(varargin)
 
 % Edit the above text to modify the response to help Acquisition
 
-% Last Modified by GUIDE v2.5 31-Aug-2016 16:37:53
+% Last Modified by GUIDE v2.5 02-Sep-2016 17:29:19
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -54,6 +54,7 @@ function Acquisition_OpeningFcn(hObject, eventdata, handles, varargin)
 % varargin   command line arguments to Acquisition (see VARARGIN)
 
 % Choose default command line output for Acquisition
+addpath('Lighting');
 handles.output = hObject;
 
 % Update handles structure
@@ -789,45 +790,134 @@ function lightsImage_CreateFcn(hObject, eventdata, handles)
 % handles    empty - handles not created until after all CreateFcns called
 
 % Hint: place code in OpeningFcn to populate lightsImage
+    
     global positionsLightsImage
     global lightsInformation
+    global handleAxisImage
+    
     lightsInformation= {}; %The information of the lights will be stored in a cell array
-    %in the following format: [R G B]
+    %in the following format: [x y Brightness]
     positionsLightsImage= [50 171 167 173 295 173 51 94 168 94 294 95 51 16 168 16 295 16];
     
+    handleAxisImage= hObject;
     axis(hObject);
     i= imread('GUI_Images/llums.png');
     imshow(i);
     hold on;
     for i=1:2:length(positionsLightsImage) %print Light
         rectangle('Position',[positionsLightsImage(i) positionsLightsImage(i+1) 26 26],'FaceColor',[0 0 0],'Curvature',[1 1]);
-        lightsInformation{ceil(i/2)} = [0 0 0];
+        lightsInformation{ceil(i/2)} = [0.3127 0.329 0];
     end
     
     hold off;
 end
 
-function refreshColors(handles,lightNumber)
+function refreshColors(lightNumber)
 %handles    structure with handles and user data
 %lightNumber number of the light we want to refresh, 0 if all the lights.
     global lightsInformation
-    axis(handles.lightsImage);
+    global positionsLightsImage
+    global handleAxisImage
+    axis(handleAxisImage);
     hold on;
     if(lightNumber== 0)
         for i=1:2:length(positionsLightsImage) %print Light
             info= lightsInformation{ceil(i/2)};
-            
-            rectangle('Position',[positionsLightsImage(i) positionsLightsImage(i+1) 26 26],'FaceColor',[info(1) info(2) info(3)],'Curvature',[1 1]);
+            rgb= xyY2rgb([info(1) info(2) info(3)]);
+            rectangle('Position',[positionsLightsImage(i) positionsLightsImage(i+1) 26 26],'FaceColor',[rgb(1) rgb(2) rgb(3)],'Curvature',[1 1]);
         end
     else
         info= lightsInformation{lightNumber};
         i= (lightNumber-1)*2 +1;
-        rectangle('Position',[positionsLightsImage(i) positionsLightsImage(i+1) 26 26],'FaceColor',[info(1) info(2) info(3)],'Curvature',[1 1]); 
+        rgb= xyY2rgb([info(1) info(2) info(3)]);
+        rectangle('Position',[positionsLightsImage(i) positionsLightsImage(i+1) 26 26],'FaceColor',[rgb(1) rgb(2) rgb(3)],'Curvature',[1 1]); 
     end
     hold off;
 end
 
+function [max,min] = findxLimits(y)
+%FINDLIMITS To find the x limits for a given y of a given gamut 
 
+    step= 0.01;
+    gamut=[0.675 0.322; 0.409 0.518; 0.167 0.04;0.675 0.322];
+    for min=0:step:1
+        in= inpolygon(min,y,gamut(:,1),gamut(:,2));
+        if(in)
+            break;
+        end
+    end
+
+    for max=1:-step:0
+        in= inpolygon(max,y,gamut(:,1),gamut(:,2));
+        if(in)
+            break;
+        end
+    end
+
+end
+
+function [max,min] = findyLimits(x)
+%FINDLIMITS To find the y limits for a given x of a given gamut 
+
+    step= 0.01;
+    gamut=[0.675 0.322; 0.409 0.518; 0.167 0.04;0.675 0.322];
+    for min=0:step:1
+        in= inpolygon(min,x,gamut(:,1),gamut(:,2));
+        if(in)
+            break;
+        end
+    end
+
+    for max=1:-step:0
+        in= inpolygon(max,x,gamut(:,1),gamut(:,2));
+        if(in)
+            break;
+        end
+    end
+
+end
+
+function refreshLights(handles,lightNumber)
+    global activeLights
+    global lightsInformation
+    index= find(activeLights==lightNumber);
+    if(index)
+        activeLights(index)=[];
+    else
+        activeLights= [activeLights lightNumber];
+        lightsInformation(lightNumber)={[0.3127,0.329,1]};
+    end
+    
+    if(isempty(activeLights))
+        set(handles.ActiveLightsText,'String','None');
+        set(handles.lightNumberSelector,'String','?');
+        set(handles.lightNumberSelector,'Value',1);
+        set(handles.xValue,'String','?');
+        set(handles.yValue,'String','?');
+        set(handles.BValue,'String','?');
+        
+    else
+        activeLights= sort(activeLights);
+        index= find(activeLights==lightNumber);
+        activeLightsString= sprintf('%.d, ', activeLights);
+        activeLightsString= activeLightsString(1:end-2);
+        set(handles.ActiveLightsText,'String',activeLightsString);
+        numberSelectable= sprintf('%.d \n',activeLights);
+        numberSelectable= numberSelectable(1:end-2);
+        set(handles.lightNumberSelector,'String',numberSelectable);
+        if(isempty(index)) 
+            index= 1;
+        end
+        set(handles.lightNumberSelector,'Value',index);
+        info= lightsInformation{index};
+        info(3)=1;
+        set(handles.xValue,'String',sprintf('%0.3f',info(1)));
+        set(handles.yValue,'String',sprintf('%0.3f',info(2)));
+        set(handles.BValue,'String',sprintf('%0.3f',info(3)));
+        lightsInformation{index}= info;
+        refreshColors(index);
+    end
+end
 % --- Executes on button press in Light1Selector.
 function Light1Selector_Callback(hObject, eventdata, handles)
 % hObject    handle to Light1Selector (see GCBO)
@@ -835,6 +925,7 @@ function Light1Selector_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of Light1Selector
+    refreshLights(handles,1);
 end
 
 
@@ -846,6 +937,7 @@ function Light4Selector_Callback(hObject, eventdata, handles)
 
 % Hint: get(hObject,'Value') returns toggle state of Light4Selector
 
+    refreshLights(handles,4);
 end
 
 % --- Executes on button press in Light7Selector.
@@ -855,6 +947,9 @@ function Light7Selector_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of Light7Selector
+
+    
+    refreshLights(handles,7);
 end
 
 
@@ -865,6 +960,8 @@ function Light8Selector_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of Light8Selector
+    
+    refreshLights(handles,8);
 end
 
 % --- Executes on button press in Light5Selector.
@@ -874,6 +971,8 @@ function Light5Selector_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of Light5Selector
+    
+    refreshLights(handles,5);
 end
 
 % --- Executes on button press in Light2Selector.
@@ -883,6 +982,8 @@ function Light2Selector_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of Light2Selector
+
+    refreshLights(handles,2);
 end
 
 % --- Executes on button press in Light9Selector.
@@ -892,6 +993,8 @@ function Light9Selector_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of Light9Selector
+
+    refreshLights(handles,9);
 end
 
 % --- Executes on button press in Light6Selector.
@@ -901,6 +1004,9 @@ function Light6Selector_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of Light6Selector
+
+    
+    refreshLights(handles,6);
 end
 
 % --- Executes on button press in Light3Selector.
@@ -910,6 +1016,9 @@ function Light3Selector_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Hint: get(hObject,'Value') returns toggle state of Light3Selector
+
+    
+    refreshLights(handles,3);
 end
 
 
@@ -918,6 +1027,8 @@ function startButton_Callback(hObject, eventdata, handles)
 % hObject    handle to startButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+    %TO DO
 end
 
 % --- Executes on button press in previewButton.
@@ -925,6 +1036,8 @@ function previewButton_Callback(hObject, eventdata, handles)
 % hObject    handle to previewButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+    
+    %TO DO
 end
 
 
@@ -940,15 +1053,14 @@ function lightNumberSelector_Callback(hObject, eventdata, handles)
 end
 
 
-
-% --- Executes on selection change in RedMode.
-function RedMode_Callback(hObject, eventdata, handles)
-% hObject    handle to RedMode (see GCBO)
+% --- Executes on selection change in xMode.
+function xMode_Callback(hObject, eventdata, handles)
+% hObject    handle to xMode (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: contents = cellstr(get(hObject,'String')) returns RedMode contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from RedMode
+% Hints: contents = cellstr(get(hObject,'String')) returns xMode contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from xMode
 
 end
 
@@ -977,8 +1089,8 @@ function GreenMode_Callback(hObject, eventdata, handles)
 end
 
 % --- Executes on slider movement.
-function RedSlider_Callback(hObject, eventdata, handles)
-% hObject    handle to RedSlider (see GCBO)
+function xSlider_Callback(hObject, eventdata, handles)
+% hObject    handle to xSlider (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
@@ -989,45 +1101,22 @@ function RedSlider_Callback(hObject, eventdata, handles)
 end
 
 
-function RedNumber_Callback(hObject, eventdata, handles)
-% hObject    handle to RedNumber (see GCBO)
+function xValue_Callback(hObject, eventdata, handles)
+% hObject    handle to xValue (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of RedNumber as text
-%        str2double(get(hObject,'String')) returns contents of RedNumber as a double
+% Hints: get(hObject,'String') returns contents of xValue as text
+%        str2double(get(hObject,'String')) returns contents of xValue as a double
 
 
 end
 
-
-
-function edit18_Callback(hObject, eventdata, handles)
-% hObject    handle to edit18 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: get(hObject,'String') returns contents of edit18 as text
-%        str2double(get(hObject,'String')) returns contents of edit18 as a double
-end
-
-% --- Executes during object creation, after setting all properties.
-function edit18_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to edit18 (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-end
 
 
 % --- Executes on slider movement.
-function GreenSlider_Callback(hObject, eventdata, handles)
-% hObject    handle to GreenSlider (see GCBO)
+function ySlider_Callback(hObject, eventdata, handles)
+% hObject    handle to ySlider (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
@@ -1036,40 +1125,18 @@ function GreenSlider_Callback(hObject, eventdata, handles)
 
 end
 
-% --- Executes during object creation, after setting all properties.
-function GreenSlider_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to GreenSlider (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
-
-% Hint: slider controls usually have a light gray background.
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-end
 
 
-function GreenValue_Callback(hObject, eventdata, handles)
-% hObject    handle to GreenValue (see GCBO)
+function yValue_Callback(hObject, eventdata, handles)
+% hObject    handle to yValue (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of GreenValue as text
-%        str2double(get(hObject,'String')) returns contents of GreenValue as a double
+% Hints: get(hObject,'String') returns contents of yValue as text
+%        str2double(get(hObject,'String')) returns contents of yValue as a double
 end
 
-% --- Executes during object creation, after setting all properties.
-function GreenValue_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to GreenValue (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
 
-% Hint: edit controls usually have a white background on Windows.
-%       See ISPC and COMPUTER.
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor','white');
-end
-end
 
 % --- Executes on slider movement.
 function BlueSlider_Callback(hObject, eventdata, handles)
@@ -1081,26 +1148,14 @@ function BlueSlider_Callback(hObject, eventdata, handles)
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 end
 
-% --- Executes during object creation, after setting all properties.
-function BlueSlider_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to BlueSlider (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    empty - handles not created until after all CreateFcns called
 
-% Hint: slider controls usually have a light gray background.
-if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-    set(hObject,'BackgroundColor',[.9 .9 .9]);
-end
-
-end
-
-function BlueValue_Callback(hObject, eventdata, handles)
-% hObject    handle to BlueValue (see GCBO)
+function BValue_Callback(hObject, eventdata, handles)
+% hObject    handle to BValue (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of BlueValue as text
-%        str2double(get(hObject,'String')) returns contents of BlueValue as a double
+% Hints: get(hObject,'String') returns contents of BValue as text
+%        str2double(get(hObject,'String')) returns contents of BValue as a double
 end
 
 
@@ -1113,4 +1168,15 @@ function ActiveLightsText_CreateFcn(hObject, eventdata, handles)
     global activeLights
     activeLights= [];
     
+end
+
+
+% --- Executes on selection change in ChangeApplyMenu.
+function ChangeApplyMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to ChangeApplyMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns ChangeApplyMenu contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from ChangeApplyMenu
 end
