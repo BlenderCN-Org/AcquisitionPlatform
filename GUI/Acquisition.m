@@ -22,7 +22,7 @@ function varargout = Acquisition(varargin)
 
 % Edit the above text to modify the response to help Acquisition
 
-% Last Modified by GUIDE v2.5 02-Sep-2016 17:29:19
+% Last Modified by GUIDE v2.5 05-Sep-2016 17:58:19
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -806,7 +806,7 @@ function lightsImage_CreateFcn(hObject, eventdata, handles)
     hold on;
     for i=1:2:length(positionsLightsImage) %print Light
         rectangle('Position',[positionsLightsImage(i) positionsLightsImage(i+1) 26 26],'FaceColor',[0 0 0],'Curvature',[1 1]);
-        lightsInformation{ceil(i/2)} = [0.3127 0.329 0];
+        lightsInformation{ceil(i/2)} = [0.3127 0.326 0];
     end
     
     hold off;
@@ -834,59 +834,88 @@ function refreshColors(lightNumber)
     end
     hold off;
 end
+function  setXValue(value,lightNumber,handles)
 
-function [max,min] = findxLimits(y)
-%FINDLIMITS To find the x limits for a given y of a given gamut 
-
-    step= 0.01;
-    gamut=[0.675 0.322; 0.409 0.518; 0.167 0.04;0.675 0.322];
-    for min=0:step:1
-        in= inpolygon(min,y,gamut(:,1),gamut(:,2));
-        if(in)
-            break;
-        end
+    global lightsInformation
+    [max,min]= findyLimits(double(value));
+    
+    info= lightsInformation{lightNumber}
+    set(handles.ySlider,'Value',info(2));
+    valueSlider= get(handles.ySlider,'Value');
+    if(min>valueSlider)
+        set(handles.ySlider,'Value',min);
+        set(handles.yValue,'String',sprintf('%.2f',min));
+    elseif(max<valueSlider)
+        set(handles.ySlider,'Value',max);
+        set(handles.yValue,'String',sprintf('%.2f',max));
     end
+    set(handles.ySlider,'Max',max);
+    set(handles.yValue,'Max',max);
+    set(handles.ySlider,'Min',min);
+    set(handles.yValue,'Min',min);
+    
+    textLimits= sprintf('(%.2f-%.2f)',min,max);
+    set(handles.TextYLimits,'String',textLimits);
+    
+    set(handles.xValue,'Value',value);
+    set(handles.xValue,'String',sprintf('%.2f',value));
+    set(handles.xSlider,'Value',value);
+   
 
-    for max=1:-step:0
-        in= inpolygon(max,y,gamut(:,1),gamut(:,2));
-        if(in)
-            break;
-        end
-    end
-
+    info(1)= value;
+    info(2)= get(handles.ySlider,'Value');
+    lightsInformation{lightNumber}= info;
+    refreshColors(lightNumber);
+    
 end
 
-function [max,min] = findyLimits(x)
-%FINDLIMITS To find the y limits for a given x of a given gamut 
+function setYValue(value, lightNumber,handles)
 
-    step= 0.01;
-    gamut=[0.675 0.322; 0.409 0.518; 0.167 0.04;0.675 0.322];
-    for min=0:step:1
-        in= inpolygon(min,x,gamut(:,1),gamut(:,2));
-        if(in)
-            break;
-        end
+    global lightsInformation
+    [max,min]= findxLimits(double(value));
+    
+    set(handles.xSlider,'Max',max);
+    set(handles.xValue,'Max',max);
+    set(handles.xSlider,'Min',min);
+    set(handles.xValue,'Min',min);
+    
+    info= lightsInformation{lightNumber};
+    set(handles.xSlider,'Value',info(1));
+    
+    valueSlider= get(handles.xSlider,'Value');
+    if(min>valueSlider)
+        set(handles.xSlider,'Value',min);
+        set(handles.xValue,'String',sprintf('%.2f',min));
+    elseif(max<valueSlider)
+        set(handles.xSlider,'Value',max);
+        set(handles.xValue,'String',sprintf('%.2f',max));
     end
 
-    for max=1:-step:0
-        in= inpolygon(max,x,gamut(:,1),gamut(:,2));
-        if(in)
-            break;
-        end
-    end
-
+    
+    textLimits= sprintf('(%.2f-%.2f)',min,max);
+    set(handles.TextXLimits,'String',textLimits);
+    
+    set(handles.yValue,'Value',value);
+    set(handles.yValue,'String',sprintf('%.2f',value));
+    set(handles.ySlider,'Value',value);
+   
+    info(1)=get(handles.xSlider,'Value');
+    info(2)= value;
+    lightsInformation{lightNumber}= info;
+    refreshColors(lightNumber);
 end
 
 function refreshLights(handles,lightNumber)
     global activeLights
     global lightsInformation
     index= find(activeLights==lightNumber);
-    if(index)
+    if(~isempty(index))
         activeLights(index)=[];
     else
         activeLights= [activeLights lightNumber];
-        lightsInformation(lightNumber)={[0.3127,0.329,1]};
+        lightsInformation(lightNumber)={[0.3127,0.326,1]};
     end
+    info= lightsInformation{lightNumber};
     
     if(isempty(activeLights))
         set(handles.ActiveLightsText,'String','None');
@@ -895,28 +924,46 @@ function refreshLights(handles,lightNumber)
         set(handles.xValue,'String','?');
         set(handles.yValue,'String','?');
         set(handles.BValue,'String','?');
-        
+        info(3)= 0;
+        set(handles.xValue,'String',sprintf('-'));
+        set(handles.yValue,'String',sprintf('-'));
+        set(handles.BValue,'String',sprintf('-'));
     else
         activeLights= sort(activeLights);
         index= find(activeLights==lightNumber);
         activeLightsString= sprintf('%.d, ', activeLights);
-        activeLightsString= activeLightsString(1:end-2);
+        %activeLightsString= activeLightsString(1:end-2);
         set(handles.ActiveLightsText,'String',activeLightsString);
         numberSelectable= sprintf('%.d \n',activeLights);
         numberSelectable= numberSelectable(1:end-2);
         set(handles.lightNumberSelector,'String',numberSelectable);
+        
         if(isempty(index)) 
-            index= 1;
+            %if the light is off
+            info(3)= 0;
+            set(handles.lightNumberSelector,'Value',1);
+            light2=lightSelected(handles);
+            info2= lightsInformation{light2};
+            setXValue(info2(1),lightNumber,handles);
+            setYValue(info2(2),lightNumber,handles);
+            set(handles.BValue,'String',sprintf('%0.3f',info2(3)));
+            
+        else
+            %if the light is on
+            info(3)=1;
+            info(2)= 0.326;
+            info(1)= 0.3127;
+            setXValue(info(1),lightNumber,handles);
+            setYValue(info(2),lightNumber,handles);
+            set(handles.xValue,'String',sprintf('%0.3f',info(1)));
+            set(handles.yValue,'String',sprintf('%0.3f',info(2)));
+            set(handles.BValue,'String',sprintf('%0.3f',info(3))); 
+            set(handles.lightNumberSelector,'Value',index);
         end
-        set(handles.lightNumberSelector,'Value',index);
-        info= lightsInformation{index};
-        info(3)=1;
-        set(handles.xValue,'String',sprintf('%0.3f',info(1)));
-        set(handles.yValue,'String',sprintf('%0.3f',info(2)));
-        set(handles.BValue,'String',sprintf('%0.3f',info(3)));
-        lightsInformation{index}= info;
-        refreshColors(index);
+
     end
+    lightsInformation{lightNumber}= info;
+    refreshColors(lightNumber);
 end
 % --- Executes on button press in Light1Selector.
 function Light1Selector_Callback(hObject, eventdata, handles)
@@ -1021,71 +1068,57 @@ function Light3Selector_Callback(hObject, eventdata, handles)
     refreshLights(handles,3);
 end
 
+function [max,min] = findxLimits(y)
+%FINDLIMITS To find the x limits for a given y of a given gamut 
 
-% --- Executes on button press in startButton.
-function startButton_Callback(hObject, eventdata, handles)
-% hObject    handle to startButton (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+    step= 0.001;
+    gamut=[0.675 0.322; 0.409 0.518; 0.167 0.04;0.675 0.322];
+    for min=0:step:1
+        in= inpolygon(min,y,gamut(:,1),gamut(:,2));
+        if(in)
+            break;
+        end
+    end
 
-    %TO DO
+    for max=1:-step:0
+        in= inpolygon(max,y,gamut(:,1),gamut(:,2));
+        if(in)
+            break;
+        end
+    end
+
 end
 
-% --- Executes on button press in previewButton.
-function previewButton_Callback(hObject, eventdata, handles)
-% hObject    handle to previewButton (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+function [max,min] = findyLimits(x)
+%FINDLIMITS To find the y limits for a given x of a given gamut 
+
+    step= 0.001;
+    gamut=[0.675 0.322; 0.409 0.518; 0.167 0.04;0.675 0.322];
+    for min=0:step:1
+        in= inpolygon(x,min,gamut(:,1),gamut(:,2));
+        if(in)
+            break;
+        end
+    end
+
+    for max=1:-step:0
+        in= inpolygon(x,max,gamut(:,1),gamut(:,2));
+        if(in)
+            break;
+        end
+    end
+
+end
+
+function number= lightSelected(handles)
+    global activeLights
+    if(~isempty(activeLights))
+        value= get(handles.lightNumberSelector,'Value');
+        number= activeLights(value);
+    else 
+        number= -1;
+    end
     
-    %TO DO
-end
-
-
-% --- Executes on selection change in lightNumberSelector.
-function lightNumberSelector_Callback(hObject, eventdata, handles)
-% hObject    handle to lightNumberSelector (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns lightNumberSelector contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from lightNumberSelector
-
-end
-
-
-% --- Executes on selection change in xMode.
-function xMode_Callback(hObject, eventdata, handles)
-% hObject    handle to xMode (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns xMode contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from xMode
-
-end
-
-
-% --- Executes on selection change in BlueMode.
-function BlueMode_Callback(hObject, eventdata, handles)
-% hObject    handle to BlueMode (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns BlueMode contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from BlueMode
-
-
-end
-
-
-% --- Executes on selection change in GreenMode.
-function GreenMode_Callback(hObject, eventdata, handles)
-% hObject    handle to GreenMode (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns GreenMode contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from GreenMode
 end
 
 % --- Executes on slider movement.
@@ -1096,8 +1129,10 @@ function xSlider_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
-
+    lightNumber= lightSelected(handles);
+    value= get(hObject,'Value');
+    setXValue(value,lightNumber,handles);
+    
 end
 
 
@@ -1108,8 +1143,21 @@ function xValue_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of xValue as text
 %        str2double(get(hObject,'String')) returns contents of xValue as a double
-
-
+    lightNumber= lightSelected(handles);
+    value= str2double(get(hObject,'String'));
+    min= get(hObject,'Min');
+    max = get(hObject,'Max');
+    if(isnumeric(value) && value>=min && value <=max)
+        setXValue(value,lightNumber, handles);
+    else
+        if((value-min) < (max-value))
+            setXValue(min,lightNumber,handles);
+        else
+            setXValue(max,lightNumber,handles);
+        end
+    end
+    
+    
 end
 
 
@@ -1122,7 +1170,9 @@ function ySlider_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
-
+    lightNumber= lightSelected(handles);
+    value= get(hObject,'Value');
+    setYValue(value,lightNumber,handles);
 end
 
 
@@ -1134,13 +1184,26 @@ function yValue_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of yValue as text
 %        str2double(get(hObject,'String')) returns contents of yValue as a double
+    lightNumber= lightSelected(handles);
+    value= str2double(get(hObject,'String'));
+    min= get(hObject,'Min');
+    max = get(hObject,'Max');
+    if(isnumeric(value) && value>=min && value <=max)
+        setYValue(value,lightNumber, handles);
+    else
+        if((value-min) < (max-value))
+            setYValue(min,lightNumber,handles);
+        else
+            setYValue(max,lightNumber,handles);
+        end
+    end
 end
 
 
 
 % --- Executes on slider movement.
-function BlueSlider_Callback(hObject, eventdata, handles)
-% hObject    handle to BlueSlider (see GCBO)
+function BSlider_Callback(hObject, eventdata, handles)
+% hObject    handle to BSlider (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
@@ -1170,6 +1233,47 @@ function ActiveLightsText_CreateFcn(hObject, eventdata, handles)
     
 end
 
+% --- Executes on selection change in lightNumberSelector.
+function lightNumberSelector_Callback(hObject, eventdata, handles)
+% hObject    handle to lightNumberSelector (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns lightNumberSelector contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from lightNumberSelector
+    
+    global activeLights
+    global lightsInformation
+    value= get(hObject,'Value');
+    lightNumber= activeLights(value);
+    setXValue(lightInfo(1),lightNumber, handles);
+    setYValue(lightInfo(2),lightNumber, handles);
+end
+
+
+% --- Executes on selection change in modeColour.
+function modeColour_Callback(hObject, eventdata, handles)
+% hObject    handle to modeColour (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns modeColour contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from modeColour
+
+end
+
+
+% --- Executes on selection change in BrightnessMode.
+function BrightnessMode_Callback(hObject, eventdata, handles)
+% hObject    handle to BrightnessMode (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns BrightnessMode contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from BrightnessMode
+
+
+end
 
 % --- Executes on selection change in ChangeApplyMenu.
 function ChangeApplyMenu_Callback(hObject, eventdata, handles)
@@ -1179,4 +1283,103 @@ function ChangeApplyMenu_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns ChangeApplyMenu contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from ChangeApplyMenu
+end
+
+% --- Executes on button press in startButton.
+function startButton_Callback(hObject, eventdata, handles)
+% hObject    handle to startButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+    %TO DO
+end
+
+% --- Executes on button press in previewButton.
+function previewButton_Callback(hObject, eventdata, handles)
+% hObject    handle to previewButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    
+    %TO DO
+end
+
+
+% --------------------------------------------------------------------
+function ExperimentMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to ExperimentMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --------------------------------------------------------------------
+function HelpMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to HelpMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --------------------------------------------------------------------
+function AboutMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to AboutMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --------------------------------------------------------------------
+function LightingMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to LightingMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --------------------------------------------------------------------
+function CamerasMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to CamerasMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --------------------------------------------------------------------
+function ObjectsMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to ObjectsMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --------------------------------------------------------------------
+function RotatoryTableMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to RotatoryTableMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    rotatoryTableSetup
+end
+
+
+% --------------------------------------------------------------------
+function SetupMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to SetupMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+
+% --------------------------------------------------------------------
+function newMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to newMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --------------------------------------------------------------------
+function saveMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to saveMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --------------------------------------------------------------------
+function loadMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to loadMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
 end
