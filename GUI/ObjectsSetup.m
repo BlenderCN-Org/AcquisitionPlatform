@@ -54,7 +54,6 @@ function ObjectsSetup_OpeningFcn(hObject, eventdata, handles, varargin)
 % varargin   command line arguments to ObjectsSetup (see VARARGIN)
 
 % Choose default command line output for ObjectsSetup
-addpath('Lighting');
 handles.output = hObject;
 
 % Update handles structure

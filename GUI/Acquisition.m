@@ -22,10 +22,14 @@ function varargout = Acquisition(varargin)
 
 % Edit the above text to modify the response to help Acquisition
 
-% Last Modified by GUIDE v2.5 07-Sep-2016 17:23:42
+% Last Modified by GUIDE v2.5 09-Sep-2016 14:22:31
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
+addpath([pwd '\Functions']);
+addpath([pwd '\GUI_Images']);
+addpath([pwd '\Logs']);
+
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
                    'gui_OpeningFcn', @Acquisition_OpeningFcn, ...
@@ -54,8 +58,8 @@ function Acquisition_OpeningFcn(hObject, eventdata, handles, varargin)
 % varargin   command line arguments to Acquisition (see VARARGIN)
 
 % Choose default command line output for Acquisition
-addpath('Lighting');
-addpath('GUI_Images');
+
+
 handles.output = hObject;
 
 % Update handles structure
@@ -177,17 +181,6 @@ function loadMenu_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 end
 
-
-% --- Executes on selection change in log.
-function log_Callback(hObject, eventdata, handles)
-% hObject    handle to log (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hints: contents = cellstr(get(hObject,'String')) returns log contents as cell array
-%        contents{get(hObject,'Value')} returns selected item from log
-end
-
 % --- Executes during object creation, after setting all properties.
 function log_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to log (see GCBO)
@@ -199,6 +192,11 @@ function log_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+global logHandle
+    logHandle= hObject;
+    add2Log('User interface opened');
+    
 end
 
 % --- Executes on button press in stopButton.
@@ -259,13 +257,49 @@ function selectorTableConfiguration_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+global Positions;
+Positions= [];
+
+global RotationSteps;
+RotationSteps=[];
+global InclinationSteps;
+InclinationSteps= [];
+global currentPosition;
+currentPosition= [];
 end
 
-% --- Executes on button press in refreshTableConfiguration.
+function newTableConfiguration(handle,value)
+    global Positions;
+    
+end
+
+function refreshTableFiles(handles)
+    files= dir('Setups/Table');
+    files= files(4:end);
+    [~,ind]=sort({files.date});
+    files= files(ind);
+    list= {};
+    for i=1:length(files)
+        string= [files(i).name(1:end-4), '   (Created at ', files(i).date,' )'];
+        list= [{string}; list];
+    end
+%     currentText= cellstr(get(logHandle,'String'));
+%     text= [{string};currentText];
+    set(handles.selectorTableConfiguration,'String',list);
+end
+
+function refreshTableNumbers(handles)
+
+    
+end
+
 function refreshTableConfiguration_Callback(hObject, eventdata, handles)
 % hObject    handle to refreshTableConfiguration (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+    refreshTableFiles(handles);
+    
 end
 
 % --- Executes on selection change in selectorLightsConfiguration.
@@ -453,13 +487,12 @@ function inclinationPlot_CreateFcn(hObject, eventdata, handles)
     
     axes(hObject);
     imshow('GUI_Images/inclination.png');
-    changeInclination(0,handles);
+    changeInclination(0,hObject);
     
 end
 
-function changeInclination(newInclination, handles)
-    %45= 5
-    
+function changeInclination(newInclination, handle)
+    axes(handle);
     m= -5.1667;
     n= 237.5;
     y= newInclination*m+n;
@@ -477,5 +510,15 @@ function rotationPlot_CreateFcn(hObject, eventdata, handles)
 
     axes(hObject);
     imshow('GUI_Images/tableSmall.png');
-    camroll(45);
+end
+
+
+% --- Executes on selection change in log.
+function log_Callback(hObject, eventdata, handles)
+% hObject    handle to log (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns log contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from log
 end

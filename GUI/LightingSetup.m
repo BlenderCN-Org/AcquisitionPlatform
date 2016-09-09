@@ -54,7 +54,6 @@ function LightingSetup_OpeningFcn(hObject, eventdata, handles, varargin)
 % varargin   command line arguments to LightingSetup (see VARARGIN)
 
 % Choose default command line output for LightingSetup
-addpath('Lighting');
 handles.output = hObject;
 
 % Update handles structure

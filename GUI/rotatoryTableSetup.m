@@ -22,7 +22,7 @@ function varargout = rotatoryTableSetup(varargin)
 
 % Edit the above text to modify the response to help rotatoryTableSetup
 
-% Last Modified by GUIDE v2.5 05-Sep-2016 18:14:37
+% Last Modified by GUIDE v2.5 08-Sep-2016 15:46:13
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -54,7 +54,6 @@ function rotatoryTableSetup_OpeningFcn(hObject, eventdata, handles, varargin)
 % varargin   command line arguments to rotatoryTableSetup (see VARARGIN)
 
 % Choose default command line output for rotatoryTableSetup
-addpath('Lighting');
 handles.output = hObject;
 
 % Update handles structure
@@ -626,4 +625,76 @@ function MinimumValueInc_CreateFcn(hObject, eventdata, handles)
     minDegreeInclinationValue= -45;
     minStepInclinationValue= -1000;
     set(hObject,'String',num2str(0));
+end
+
+
+% --- Executes on button press in saveConfiguration.
+function saveConfiguration_Callback(hObject, eventdata, handles)
+% hObject    handle to saveConfiguration (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    global lastUnitRot
+    global lastUnitInc
+    global handleLog
+    
+    minRot= str2double(get(handles.MinimumValueRot,'String'));
+    maxRot= str2double(get(handles.MaximumValueRot,'String'));
+    stepRot= str2double(get(handles.StepValueRot,'String'));
+    stepsRot= str2double(get(handles.TotalStepsValueRot,'String'));
+    
+    minInc= str2double(get(handles.MinimumValueInc,'String'));
+    maxInc= str2double(get(handles.MaximumValueInc,'String'));
+    stepInc= str2double(get(handles.StepValueInc,'String'));
+    stepsInc= str2double(get(handles.TotalStepsValueInc,'String'));
+    conversionDegree2Steps= 8000/360;
+    
+    if(~strcmp(lastUnitRot,'Degrees'))
+        minRot= minRot/conversionDegree2Steps;
+        maxRot= maxRot/conversionDegree2Steps;
+        stepRot= stepRot/conversionDegree2Steps;
+        stepsRot= stepRot/conversionDegree2Steps;
+    end
+    
+    if(~strcmp(lastUnitInc,'Degrees'))
+        minInc= minInc/conversionDegree2Steps;
+        maxInc= maxInc/conversionDegree2Steps;
+        stepInc= stepInc/conversionDegree2Steps;
+        stepsInc= stepsInc/conversionDegree2Steps;
+    end
+    
+    
+    nameFile= sprintf('Setups/Table/Rot_%d_%d_%d_Inc_%d_%d_%d.txt',minRot,stepsRot,maxRot,minInc,stepsInc,maxInc);
+    rotatoryTableSetup= gcf;
+    
+    if(exist(nameFile,'file')==2)
+        msgbox('The configuration selected already exists. Try to change some parameters or use the configuration that already exists.','Configuration already exists');
+    else
+        for i=minInc:stepInc:maxInc
+            for j=minRot:stepRot:maxRot
+                dlmwrite(nameFile,[j,i],'-append');
+            end
+        end
+        msgbox('The current table configuration was saved correctly.','Success');
+        go= get(handleLog,'String');
+        disp(go);
+    end
+    
+    close(rotatoryTableSetup);
+end
+
+% --- Executes on button press in resetConfiguration.
+function resetConfiguration_Callback(hObject, eventdata, handles)
+% hObject    handle to resetConfiguration (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    set(handles.MinimumValueRot,'String',0);
+    set(handles.MaximumValueRot,'String',360);
+    set(handles.StepValueRot,'String',360);
+    set(handles.TotalStepsValueRot,'String',1);
+    
+    set(handles.MinimumValueInc,'String',0);
+    set(handles.MaximumValueInc,'String',45);
+    set(handles.StepValueInc,'String',45);
+    set(handles.TotalStepsValueInc,'String',1);
+
 end
