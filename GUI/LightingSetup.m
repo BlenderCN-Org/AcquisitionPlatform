@@ -26,6 +26,7 @@ function varargout = LightingSetup(varargin)
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
+addpath([pwd '\Functions']);
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
                    'gui_OpeningFcn', @LightingSetup_OpeningFcn, ...
@@ -52,7 +53,7 @@ function LightingSetup_OpeningFcn(hObject, eventdata, handles, varargin)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to LightingSetup (see VARARGIN)
-
+addpath([pwd '\Functions']);
 % Choose default command line output for LightingSetup
 handles.output = hObject;
 

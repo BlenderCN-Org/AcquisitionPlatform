@@ -58,7 +58,11 @@ function Acquisition_OpeningFcn(hObject, eventdata, handles, varargin)
 % varargin   command line arguments to Acquisition (see VARARGIN)
 
 % Choose default command line output for Acquisition
+global simulationStop
+simulationStop= false;
 
+refreshTableFiles(handles);
+newTableConfiguration(handles);
 
 handles.output = hObject;
 
@@ -127,6 +131,7 @@ function LightingMenu_Callback(hObject, eventdata, handles)
 % hObject    handle to LightingMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+    LightingSetup
 end
 
 % --------------------------------------------------------------------
@@ -141,6 +146,7 @@ function ObjectsMenu_Callback(hObject, eventdata, handles)
 % hObject    handle to ObjectsMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+    ObjectsSetup
 end
 
 % --------------------------------------------------------------------
@@ -244,6 +250,7 @@ function selectorTableConfiguration_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns selectorTableConfiguration contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from selectorTableConfiguration
+    newTableConfiguration(handles);
 end
 
 % --- Executes during object creation, after setting all properties.
@@ -260,18 +267,58 @@ end
 
 global Positions;
 Positions= [];
-
-global RotationSteps;
-RotationSteps=[];
-global InclinationSteps;
-InclinationSteps= [];
-global currentPosition;
-currentPosition= [];
 end
 
-function newTableConfiguration(handle,value)
-    global Positions;
+function changeInclination(newInclination, handles)
+    axes(handles.inclinationPlot);
+    m= -5.1667;
+    n= 237.5;
+    y= newInclination*m+n;
+    speedPreview= get(handles.previewSpeedTable,'Value');
     
+    hold on
+    rectangle('Position',[5,y,70,20],'FaceColor',[0 0.8 0.2]);
+    drawnow
+    hold off
+end
+
+function changeRotation(newRotation,handles)
+    axes(handles.rotationPlot);
+    
+    stringRotation= get(handles.currentRotationString,'String');
+    currentRotation= str2double(stringRotation);
+    
+    rotationChange= newRotation- currentRotation;
+    speedPreview= get(handles.previewSpeedTable,'Value');
+    
+    step= 0.01*speedPreview;
+    hold on
+    for rotation=1:step:rotationChange
+        camroll(step);
+        %drawnow;
+    end
+    pause(0.5/speedPreview);
+    hold off
+end
+
+function newTableConfiguration(handles)
+    global Positions;
+    index= get(handles.selectorTableConfiguration,'Value');
+    files= dir('Setups/Table');
+    files= files(4:end);
+    [~,ind]= sort({files.date});
+    files= files(ind);
+    file= strcat('Setups/Table/',files(index).name);
+    Positions= dlmread(file);
+    
+    set(handles.movesDoneString,'String','0');
+    set(handles.movesLeftString,'String',num2str(size(Positions,1)-1));
+    set(handles.currentRotationString,'String',num2str(Positions(1,1)));
+    set(handles.currentInclinationString,'String',num2str(Positions(1,2)));
+    
+    changeRotation(Positions(1,1),handles);
+    changeInclination(Positions(1,2),handles);
+    add2Log(strcat('New table configuration loaded. (',files(index).name,')'));
 end
 
 function refreshTableFiles(handles)
@@ -282,16 +329,11 @@ function refreshTableFiles(handles)
     list= {};
     for i=1:length(files)
         string= [files(i).name(1:end-4), '   (Created at ', files(i).date,' )'];
-        list= [{string}; list];
+        list= [list; {string} ];
     end
 %     currentText= cellstr(get(logHandle,'String'));
 %     text= [{string};currentText];
     set(handles.selectorTableConfiguration,'String',list);
-end
-
-function refreshTableNumbers(handles)
-
-    
 end
 
 function refreshTableConfiguration_Callback(hObject, eventdata, handles)
@@ -299,7 +341,7 @@ function refreshTableConfiguration_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
     refreshTableFiles(handles);
-    
+    newTableConfiguration(handles);
 end
 
 % --- Executes on selection change in selectorLightsConfiguration.
@@ -310,6 +352,7 @@ function selectorLightsConfiguration_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns selectorLightsConfiguration contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from selectorLightsConfiguration
+    
 end
 
 % --- Executes during object creation, after setting all properties.
@@ -452,6 +495,29 @@ function previewButtonTable_Callback(hObject, eventdata, handles)
 % hObject    handle to previewButtonTable (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+    global simulationStop;
+    global Positions;
+    movesDone=1;
+    movesLeft= size(Positions,1)-1;
+    
+    set(handles.movesDoneString,'String',num2str(movesDone));
+    set(handles.movesLeftString,'String',num2str(movesLeft));
+    
+    while(movesLeft~=0 && ~simulationStop)
+        if(Positions(movesDone+1,1)~=Positions(movesDone,1))
+            changeRotation(Positions(movesDone+1,1),handles);
+        end
+        
+        if(Positions(movesDone+1,2)~=Positions(movesDone,2))
+            changeInclination(Positions(movesDone+1,2),handles);
+        end
+        movesDone= movesDone+1;
+        movesLeft= movesLeft-1;
+        set(handles.movesDoneString,'String',num2str(movesDone));
+        set(handles.movesLeftString,'String',num2str(movesLeft));
+    end
+    
 end
 
 % --- Executes on slider movement.
@@ -486,17 +552,9 @@ function inclinationPlot_CreateFcn(hObject, eventdata, handles)
 % Hint: place code in OpeningFcn to populate inclinationPlot
     
     axes(hObject);
+    hold on
     imshow('GUI_Images/inclination.png');
-    changeInclination(0,hObject);
-    
-end
-
-function changeInclination(newInclination, handle)
-    axes(handle);
-    m= -5.1667;
-    n= 237.5;
-    y= newInclination*m+n;
-    rectangle('Position',[5,y,70,20],'FaceColor',[0 0.8 0.2]);
+    hold off
 end
 
 
@@ -509,7 +567,9 @@ function rotationPlot_CreateFcn(hObject, eventdata, handles)
 % Hint: place code in OpeningFcn to populate rotationPlot
 
     axes(hObject);
+    hold on
     imshow('GUI_Images/tableSmall.png');
+    hold off
 end
 
 
