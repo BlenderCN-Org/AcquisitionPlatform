@@ -22,7 +22,7 @@ function varargout = LightingSetup(varargin)
 
 % Edit the above text to modify the response to help LightingSetup
 
-% Last Modified by GUIDE v2.5 06-Sep-2016 14:59:57
+% Last Modified by GUIDE v2.5 13-Sep-2016 16:37:54
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -132,7 +132,7 @@ function  setXValue(value,lightNumber,handles)
     global lightsInformation
     [max,min]= findyLimits(double(value));
     
-    info= lightsInformation{lightNumber}
+    info= lightsInformation{lightNumber};
     set(handles.ySlider,'Value',info(2));
     valueSlider= get(handles.ySlider,'Value');
     if(min>valueSlider)
@@ -539,6 +539,7 @@ function lightNumberSelector_Callback(hObject, eventdata, handles)
     global lightsInformation
     value= get(hObject,'Value');
     lightNumber= activeLights(value);
+    lightInfo= lightsInformation{lightNumber};
     setXValue(lightInfo(1),lightNumber, handles);
     setYValue(lightInfo(2),lightNumber, handles);
 end
@@ -677,4 +678,19 @@ function loadMenu_Callback(hObject, eventdata, handles)
 % hObject    handle to loadMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+end
+
+
+% --- Executes during object creation, after setting all properties.
+function chromacityDiagram_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to chromacityDiagram (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: place code in OpeningFcn to populate chromacityDiagram
+    
+    axes(hObject);
+    hold on
+    cieplot();
+    hold off
 end

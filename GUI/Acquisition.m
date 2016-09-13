@@ -201,7 +201,7 @@ end
 
 global logHandle
     logHandle= hObject;
-    add2Log('User interface opened');
+    add2Log('GUI: User interface opened');
     
 end
 
@@ -270,16 +270,36 @@ Positions= [];
 end
 
 function changeInclination(newInclination, handles)
+    global handleRectangle
+    
     axes(handles.inclinationPlot);
     m= -5.1667;
     n= 237.5;
     y= newInclination*m+n;
     speedPreview= get(handles.previewSpeedTable,'Value');
     
+    currentInclination= get(handles.currentInclinationString,'String');
+    currentInclination= str2double(currentInclination);
+    
+    y0= currentInclination*m+n;
+    changeInclination= y-y0;
+    
+    speedPreview= get(handles.previewSpeedTable,'Value');
+    if(changeInclination<0)
+        step= -0.1*speedPreview;
+    else
+        step= 0.1*speedPreview;
+    end
     hold on
-    rectangle('Position',[5,y,70,20],'FaceColor',[0 0.8 0.2]);
-    drawnow
+    for i=0:step:changeInclination
+        set(handles.currentInclinationString,'String',num2str(((y0+i)-n)/m));
+        set(handleRectangle,'Position',[5,y0+i,70,20]);
+        drawnow   
+    end
     hold off
+
+    add2Log(['ROTATORY TABLE: Inclination changed to ',num2str(newInclination)]);
+
 end
 
 function changeRotation(newRotation,handles)
@@ -287,18 +307,35 @@ function changeRotation(newRotation,handles)
     
     stringRotation= get(handles.currentRotationString,'String');
     currentRotation= str2double(stringRotation);
-    
+
     rotationChange= newRotation- currentRotation;
+    if(rotationChange<0)
+        rotationChange= rotationChange+360;
+    end
     speedPreview= get(handles.previewSpeedTable,'Value');
     
-    step= 0.01*speedPreview;
-    hold on
-    for rotation=1:step:rotationChange
+    step= 0.2*speedPreview;
+    %hold on
+    tSteps= floor(rotationChange/step);
+    
+    
+    for rotation=1:tSteps
+        currentRotation= currentRotation+ step;
+        if(currentRotation>=360)
+            currentRotation= 0;
+        end
+        set(handles.currentRotationString,'String',num2str(currentRotation));
         camroll(step);
-        %drawnow;
+        drawnow;
     end
-    pause(0.5/speedPreview);
-    hold off
+    correction= newRotation- currentRotation;
+    camroll(correction);
+    currentRotation= currentRotation+correction;
+    set(handles.currentRotationString,'String',num2str(currentRotation));
+    pause(1/speedPreview);
+    
+    add2Log(['ROTATORY TABLE: Rotation changed to ',num2str(currentRotation)]);
+    %hold off
 end
 
 function newTableConfiguration(handles)
@@ -313,12 +350,11 @@ function newTableConfiguration(handles)
     
     set(handles.movesDoneString,'String','0');
     set(handles.movesLeftString,'String',num2str(size(Positions,1)-1));
-    set(handles.currentRotationString,'String',num2str(Positions(1,1)));
-    set(handles.currentInclinationString,'String',num2str(Positions(1,2)));
     
+    add2Log(strcat('GUI: New table configuration loaded. (',files(index).name,')'));
     changeRotation(Positions(1,1),handles);
     changeInclination(Positions(1,2),handles);
-    add2Log(strcat('New table configuration loaded. (',files(index).name,')'));
+    
 end
 
 function refreshTableFiles(handles)
@@ -498,22 +534,27 @@ function previewButtonTable_Callback(hObject, eventdata, handles)
 
     global simulationStop;
     global Positions;
-    movesDone=1;
+    movesDone=0;
     movesLeft= size(Positions,1)-1;
     
     set(handles.movesDoneString,'String',num2str(movesDone));
     set(handles.movesLeftString,'String',num2str(movesLeft));
     
     while(movesLeft~=0 && ~simulationStop)
-        if(Positions(movesDone+1,1)~=Positions(movesDone,1))
-            changeRotation(Positions(movesDone+1,1),handles);
+        if(Positions(movesDone+2,2)~=Positions(movesDone+1,2))
+            changeInclination(Positions(movesDone+2,2),handles);
+            movesDone= movesDone+1;
+            movesLeft= movesLeft-1;
         end
+
         
-        if(Positions(movesDone+1,2)~=Positions(movesDone,2))
-            changeInclination(Positions(movesDone+1,2),handles);
+        if(movesLeft~=0)
+            if(Positions(movesDone+2,1)~=Positions(movesDone+1,1))
+                changeRotation(Positions(movesDone+2,1),handles);
+                movesDone= movesDone+1;
+                movesLeft= movesLeft-1;
+            end
         end
-        movesDone= movesDone+1;
-        movesLeft= movesLeft-1;
         set(handles.movesDoneString,'String',num2str(movesDone));
         set(handles.movesLeftString,'String',num2str(movesLeft));
     end
@@ -550,10 +591,11 @@ function inclinationPlot_CreateFcn(hObject, eventdata, handles)
 % handles    empty - handles not created until after all CreateFcns called
 
 % Hint: place code in OpeningFcn to populate inclinationPlot
-    
+    global handleRectangle
     axes(hObject);
     hold on
     imshow('GUI_Images/inclination.png');
+    handleRectangle= rectangle('Position',[5,237.5,70,20],'FaceColor',[0 0.8 0.2]);
     hold off
 end
 
